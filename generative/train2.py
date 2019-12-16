@@ -8,9 +8,11 @@ import torch.utils.data
 import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
+import wandb
 import numpy as np
 import matplotlib.pyplot as plt
 from teeth_dataset import TeethDataset
+from layers import MinibatchStdDev, PeriodicConvTranspose2D, PeriodicConv2D
 
 def weights_init(m):
     if type(m) == nn.Conv2d or type(m) == nn.ConvTranspose2d:
@@ -30,13 +32,16 @@ class Generator(nn.Module):
         self.c1 = nn.ConvTranspose2d(nz, hg, 4, 1, 0, 0, bias=False)
         self.bn1 = nn.BatchNorm2d(hg)
         self.r1 = nn.LeakyReLU(negative_slope=0.2, inplace=True) # 4x4
-        self.c2 = nn.ConvTranspose2d(hg, hg // 2, 3, 2, 1, 1, bias=False)
+        self.c2 = PeriodicConvTranspose2D(hg, hg // 2, 3, 2, 1, False)
         self.bn2 = nn.BatchNorm2d(hg//2)
         # 8x8
-        self.c3 = nn.ConvTranspose2d(hg // 2, hg // 4, 3, 2, 1, 1, bias=False)
+        self.c3 = PeriodicConvTranspose2D(hg // 2, hg // 4, 3, 2, 1, False)
         self.bn3 = nn.BatchNorm2d(hg // 4)
+        self.c4 = PeriodicConvTranspose2D(hg // 4, hg // 8, 3, 2, 1, False)
+        self.bn4 = nn.BatchNorm2d(hg // 8)
+
         # 16x16
-        self.c4 = nn.ConvTranspose2d(hg // 4, nc, 3, 2, 1, 1, bias=False)
+        self.c5 = PeriodicConvTranspose2D(hg // 8, nc, 3, 2, 1, False)
         self.tanh = nn.Tanh() # 64x64
 
     def forward(self, inp):
@@ -50,7 +55,11 @@ class Generator(nn.Module):
         oc3 = self.bn3(oc3)
         oc3 = self.r1(oc3)
         oc4 = self.c4(oc3)
-        return self.tanh(oc4)
+        oc4 = self.bn4(oc4)
+        oc4 = self.r1(oc4)
+        oc5 = self.c5(oc4)
+
+        return self.tanh(oc5)
 
 
 class Discriminator(nn.Module):
@@ -60,23 +69,18 @@ class Discriminator(nn.Module):
         self.nc = nc
         self.hd = hd
         self.main = nn.Sequential(
-            # # input is (nc) x 64 x 64
-            # nn.Conv2d(nc, hd //8, 5, 2, 2, bias=False),
-            # nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
-            nn.Conv2d(nc, hd//4, 3, 2, 1, bias=False),
+            PeriodicConv2D(nc, hd//8, 3, 2, False),
+            nn.LeakyReLU(0.2, inplace=True),
+            PeriodicConv2D(hd // 8, hd//4, 3, 2, False),
             nn.BatchNorm2d(hd//4),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(hd//4, hd//2, 3, 2, 1, bias=False),
+            PeriodicConv2D(hd//4, hd//2, 3, 2, False),
             nn.BatchNorm2d(hd//2),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(hd//2, hd, 3, 2, 1, bias=False),
-            nn.BatchNorm2d(hd),
+            PeriodicConv2D(hd//2, hd, 3, 2, False),
+            MinibatchStdDev(),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*8) x 4 x 4
-            nn.Conv2d(hd, 1, 4, 1, bias=False),
+            nn.Conv2d(hd+1, 1, 4, 1, bias=False),
             nn.Sigmoid()
         )
 
@@ -90,16 +94,18 @@ if __name__ == '__main__':
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
+    wandb.init(project="teeth-gan")
+
     dataroot = "meshes/maps"
     workers = 2
-    batch_size = 32
-    image_size = 32
+    batch_size = 20
+    image_size = 64
     orig_image_size = 100
     nc = 3 # Color channels
     nz = 100 # Latent vector size
-    hg = 256 # number of feature maps
-    hd = 256 # number of feature maps
-    num_epochs = 1000
+    hg = 128 # number of feature maps
+    hd = 128 # number of feature maps
+    num_epochs = 1
     lr_sc = 2
     lr_g = 0.0005*lr_sc
     lr_d = 0.00001*lr_sc
@@ -116,11 +122,11 @@ if __name__ == '__main__':
     print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
 
-    # netG = torch.load("netG1571059408.4237137.pt")
+    # netG = torch.load("netG1576193215.1426847.pt")
     netG = Generator(nz, image_size, nc, hg).to(device)
     netG.apply(weights_init)
 
-    # netD = torch.load("netD1571059408.453633.pt")
+    # netD = torch.load("netD1576193215.0748644.pt")
     netD = Discriminator(image_size, nc, hd).to(device)
     netD.apply(weights_init)
 
@@ -140,11 +146,10 @@ if __name__ == '__main__':
 
     # Training Loop
 
-    # Lists to keep track of progress
-    img_list = []
-    G_losses = []
-    D_losses = []
     iters = 0
+
+    wandb.watch(netG, log='all')
+    wandb.watch(netD, log='all')
 
     print("Starting Training Loop...")
     # For each epoch
@@ -161,7 +166,7 @@ if __name__ == '__main__':
             gpu_data = data.float().to(device)
             with torch.no_grad():
                 gpu_data = torch.nn.functional.interpolate(gpu_data, size=image_size, mode='bilinear', align_corners=False)
-                gpu_data = gpu_data.mul(12.0)
+                gpu_data = gpu_data.mul(6.0)
             b_size = gpu_data.size(0)
             label = torch.full((b_size,), real_label, device=device)
             # Forward pass real batch through D
@@ -210,36 +215,26 @@ if __name__ == '__main__':
             optimizerG.step()
 
             # Output training stats
-            if i % 50 == 0:
+            if i == 0:
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, num_epochs, i, len(dataloader),
                          errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-            # if iters % 8 == 0:
-            #     print("acc : %.4f" % last_acc)
-            # Save Losses for plotting later
-            G_losses.append(errG.item())
-            D_losses.append(errD.item())
+                wandb.log({'loss_D':errD.item(), 'loss_G':errG.item(), 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
 
-            # Check how the generator is doing by saving G's output on fixed_noise
-            if (iters % 500 == 0) or ((epoch == num_epochs - 1) and (i == len(dataloader) - 1)):
+            if iters % 100 == 0:
+                plt.figure(figsize=(2,2))
+                plt.axis("off")
                 with torch.no_grad():
+                    netG.eval()
                     fake = netG(fixed_noise).detach().cpu()
-                img_list.append(vutils.make_grid(fake, padding=2, normalize=True))
-                # if i > 0:
-                #     break
-
+                    plt.imshow(
+                        np.transpose(vutils.make_grid(fake[0:4], nrow=2,padding=2, normalize=True).cpu(), (1, 2, 0)))
+                plt.show()
+                # wandb.log({'examples': [wandb.Image(np.ones((64,64,3)), caption='ep%i'%(epoch))]}, step=epoch)
+                netG.train()
             iters += 1
+            break
 
     torch.save(netD, 'netD' + str(time.time() )+ '.pt')
     torch.save(netG, 'netG' + str(time.time() )+ '.pt')
 
-    plt.figure(figsize=(8, 8))
-    plt.axis("off")
-    plt.imshow(
-        np.transpose(vutils.make_grid(img_list[-1], padding=2, normalize=True).cpu(), (1, 2, 0)))
-    plt.show()
-    plt.figure()
-    plt.axis("off")
-    plt.imshow(
-        np.transpose(gpu_data[0].cpu(), (1, 2, 0)))
-    plt.show()

@@ -11,6 +11,8 @@ tuple1 = {{[6, 7, 8, 9, 10],[1],[2],[3],[4],[5]},{[1, 7, 3, 4, 9],[2],[5],[6],[8
     [1],[3],[6],[7],[8]}};
 
 
+lmlocs = zeros(n, 5,5);
+lm2D = zeros(n, 5,5,2);
 for ii = 1:n
     ii
     fname = names_cell{ii};
@@ -20,12 +22,21 @@ for ii = 1:n
     lms = landmarks(ii,:);
     minAGD = minAGD_points(ii);
     [cutMesh, ~, ~] = flatten_sphere(V ,F, lms, minAGD, tuple1);
-    f = V;
-    params.sz = 100;
-    pushed_function = push_functions_to_flattening_AE(cutMesh, f, params);
-    save(strcat('generative/meshes/', num2str(ii)), 'pushed_function')
     
+    for jj = 1:5
+        cell = cutMesh.inds_mesh_divided_to_inds_plane(lms(jj));
+        locs = cell{1};
+        [~,perm] = sort(cutMesh.vertex_scale(locs), 'ascend');
+        locs = locs(perm);
+        locs = locs(1:5);
+        lmlocs(ii, jj,:)=locs;
+        pl = cutMesh.V(locs,:);
+        pl(pl<0) = pl(pl<0)+1;
+        pl(pl>1) = pl(pl>1)-1;
+        lm2D(ii,jj,:,:) = pl;
+    end
 end
+save('generative/landmark_plane_coords.mat', 'lm2D','lmlocs')
 
 function [Vr, Fr] = preprocess(V, F, R, ii)
     Vr = V;
@@ -35,5 +46,3 @@ function [Vr, Fr] = preprocess(V, F, R, ii)
     Vr = Vr-m;
     Vr =(R(:,:,ii)*Vr')';
 end
-
-

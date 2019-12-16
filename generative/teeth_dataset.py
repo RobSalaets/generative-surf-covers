@@ -15,7 +15,7 @@ class TeethDataset(Dataset):
         self.channels = channels;
         self.root_dir = root_dir
         self.transform = transform
-        self.files = glob.glob("meshes/maps/*.mat")
+        self.files = glob.glob("meshes/maps/*p.mat")
 
     def __len__(self):
         return len(self.files)
@@ -32,7 +32,7 @@ class TeethDataset(Dataset):
         #     if self.transform:
         #         mat = self.transform(mat)
         #     batch[i, :, :, :] = mat
-        mat = loadmat(self.files[idx])['pushed_function']
+        mat = loadmat(self.files[idx])['tiled_rot']
         if self.transform:
             mat = self.transform(mat)
         return mat
