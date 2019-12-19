@@ -2,6 +2,7 @@
 import time
 import random
 import torch
+import torch.autograd
 import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data
@@ -11,7 +12,7 @@ import torchvision.utils as vutils
 import wandb
 import numpy as np
 import matplotlib.pyplot as plt
-from matlab_dataset import MatlabDataset
+from teeth_dataset import TeethDataset
 from layers import MinibatchStdDev, PeriodicConvTranspose2D, PeriodicConv2D
 
 def weights_init(m):
@@ -72,10 +73,10 @@ class Discriminator(nn.Module):
             PeriodicConv2D(nc, hd//8, 3, 2, False),
             nn.LeakyReLU(0.2, inplace=True),
             PeriodicConv2D(hd // 8, hd//4, 3, 2, False),
-            nn.BatchNorm2d(hd//4),
+            # nn.BatchNorm2d(hd//4),
             nn.LeakyReLU(0.2, inplace=True),
             PeriodicConv2D(hd//4, hd//2, 3, 2, False),
-            nn.BatchNorm2d(hd//2),
+            # nn.BatchNorm2d(hd//2),
             nn.LeakyReLU(0.2, inplace=True),
             PeriodicConv2D(hd//2, hd, 3, 2, False),
             MinibatchStdDev(),
@@ -88,33 +89,30 @@ class Discriminator(nn.Module):
         return self.main(inp)
 
 
-# if __name__ == '__main__':
-
-
-def run():
+if __name__ == '__main__':
     manualSeed = random.randint(1, 10000)
     print("Random Seed: ", manualSeed)
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    # wandb.init(project="teeth-gan")
+    wandb.init(project="teeth-gan")
 
-    keyword = "pushed_function"
+    dataroot = "meshes/maps"
     workers = 2
-    batch_size = 32
+    batch_size = 20
     image_size = 64
-    orig_image_size = 128
+    orig_image_size = 100
     nc = 3 # Color channels
     nz = 100 # Latent vector size
     hg = 128 # number of feature maps
     hd = 128 # number of feature maps
-    num_epochs = 1200
+    num_epochs = 500
     lr_sc = 2
-    lr_g = 0.0005*lr_sc
-    lr_d = 0.00001*lr_sc
+    lr_g = 0.0001
+    lr_d = 0.00005
     beta1 = 0.5 # Beta1 hyperparam for Adam optimizers
 
-    dataset = MatlabDataset(orig_image_size, nc, keyword,
+    dataset = TeethDataset(orig_image_size, nc, dataroot,
                            transform=transforms.Compose([
                                transforms.ToTensor()
                            ]))
@@ -128,7 +126,7 @@ def run():
     # netG = torch.load("netG1576613032.5378401.pt")
     netG = Generator(nz, image_size, nc, hg).to(device)
     netG.apply(weights_init)
-    #
+
     # netD = torch.load("netD1576613032.4863477.pt")
     netD = Discriminator(image_size, nc, hd).to(device)
     netD.apply(weights_init)
@@ -144,12 +142,12 @@ def run():
     fake_label = 0
 
     # Setup Adam optimizers for both G and D
-    optimizerD = optim.Adam(netD.parameters(), lr=lr_d, betas=(beta1, 0.999))
-    optimizerG = optim.Adam(netG.parameters(), lr=lr_g, betas=(beta1, 0.999))
+    # optimizerD = optim.Adam(netD.parameters(), lr=lr_d, betas=(beta1, 0.999))
+    # optimizerG = optim.Adam(netG.parameters(), lr=lr_g, betas=(beta1, 0.999))
+    optimizerD = optim.Adam(netD.parameters(), lr=lr_d, betas=(0, 0.9))
+    optimizerG = optim.Adam(netG.parameters(), lr=lr_g, betas=(0, 0.9))
 
     # Training Loop
-
-    iters = 0
 
     # wandb.watch(netG, log='all')
     # wandb.watch(netD, log='all')
@@ -164,67 +162,65 @@ def run():
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
             ###########################
             ## Train with all-real batch
+
             netD.zero_grad()
             # Format batch
             gpu_data = data.float().to(device)
             with torch.no_grad():
                 gpu_data = torch.nn.functional.interpolate(gpu_data, size=image_size, mode='bilinear', align_corners=False)
-                # gpu_data = gpu_data.mul(6.0)
+                gpu_data = gpu_data.mul(6.0)
             b_size = gpu_data.size(0)
-            label = torch.full((b_size,), real_label, device=device)
-            # Forward pass real batch through D
             output = netD(gpu_data).view(-1)
-            # Calculate loss on all-real batch
-            errD_real = criterion(output, label)
-            # Calculate gradients for D in backward pass
-            # if last_acc < .8:
-            errD_real.backward()
-            D_x = output.mean().item()
+            ED_real = output.mean()
 
             ## Train with all-fake batch
             # Generate batch of latent vectors
             noise = torch.randn(b_size, nz, 1, 1, device=device)
             # Generate fake image batch with G
             fake = netG(noise)
-            label.fill_(fake_label)
-            # Classify all fake batch with D
             output = netD(fake.detach()).view(-1)
-            # Calculate D's loss on the all-fake batch
-            errD_fake = criterion(output, label)
-            # Calculate the gradients for this batch
-            # if last_acc < .8:
-            errD_fake.backward()
-            D_G_z1 = output.mean().item()
-            # Add the gradients from the all-real and all-fake batches
-            errD = errD_real + errD_fake
-            # Update D
-            # if last_acc < .8:
+            ED_fake = output.mean()
+
+            a = torch.rand(fake.size(0), 1,1,1)
+            a = a.cuda()
+            x_hat = a * fake + (1 - a) * gpu_data
+            c = netD(x_hat)
+            gradients = torch.autograd.grad(
+                c, x_hat, grad_outputs=(
+                    torch.ones(c.size()).cuda()
+                ),
+                create_graph=True,
+                retain_graph=True,
+            )[0]
+            GP = 10 * ((1 - (gradients + 1e-16).norm(2, dim=1)) ** 2).mean()
+            L = ED_fake - ED_real + GP;
+            L.backward()
+            D_G_z1 = ED_fake.item()
+            D_x = ED_real.item()
             optimizerD.step()
             # last_acc = (min(1.0, D_x / real_label) + 1.0 - D_G_z1) / 2.0
 
             ############################
             # (2) Update G network: maximize log(D(G(z)))
             ###########################
+            noise = torch.randn(b_size, nz, 1, 1, device=device)
+            # Generate fake image batch with G
+            fake2 = netG(noise)
             netG.zero_grad()
-            label.fill_(real_label)  # fake labels are real for generator cost
-            # Since we just updated D, perform another forward pass of all-fake batch through D
-            output = netD(fake).view(-1)
-            # Calculate G's loss based on this output
-            errG = criterion(output, label)
-            # Calculate gradients for G
-            errG.backward()
-            D_G_z2 = output.mean().item()
-            # Update G
+            output = netD(fake2).view(-1)
+            ED_G = output.mean()
+            ED_G.backward()
+            D_G_z2 = ED_G.item()
             optimizerG.step()
 
             # Output training stats
-            if i%2 == 0:
-                print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+            if i == 0:
+                print('[%d/%d][%d/%d]\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, num_epochs, i, len(dataloader),
-                         errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-                # wandb.log({'loss_D':errD.item(), 'loss_G':errG.item(), 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
+                        D_x, D_G_z1, D_G_z2))
+                wandb.log({'loss_D':GP.item(), 'loss_G':1, 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
 
-            if i==0 and epoch%10 == 0:
+            if epoch % 20 == 0:
                 plt.figure(figsize=(2,2))
                 plt.axis("off")
                 with torch.no_grad():
@@ -242,7 +238,3 @@ def run():
     torch.save(netD, 'netD' + str(time.time() )+ '.pt')
     torch.save(netG, 'netG' + str(time.time() )+ '.pt')
 
-
-if __name__ == '__main__':
-    import cProfile
-    cProfile.run('run()', 'stats3')

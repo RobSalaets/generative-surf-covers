@@ -11,7 +11,7 @@ import torchvision.utils as vutils
 import wandb
 import numpy as np
 import matplotlib.pyplot as plt
-from matlab_dataset import MatlabDataset
+from teeth_dataset import TeethDataset
 from layers import MinibatchStdDev, PeriodicConvTranspose2D, PeriodicConv2D
 
 def weights_init(m):
@@ -88,33 +88,30 @@ class Discriminator(nn.Module):
         return self.main(inp)
 
 
-# if __name__ == '__main__':
-
-
-def run():
+if __name__ == '__main__':
     manualSeed = random.randint(1, 10000)
     print("Random Seed: ", manualSeed)
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    # wandb.init(project="teeth-gan")
+    wandb.init(project="teeth-gan")
 
-    keyword = "pushed_function"
+    dataroot = "meshes/maps"
     workers = 2
-    batch_size = 32
+    batch_size = 20
     image_size = 64
-    orig_image_size = 128
+    orig_image_size = 100
     nc = 3 # Color channels
     nz = 100 # Latent vector size
     hg = 128 # number of feature maps
     hd = 128 # number of feature maps
-    num_epochs = 1200
+    num_epochs = 2000
     lr_sc = 2
     lr_g = 0.0005*lr_sc
     lr_d = 0.00001*lr_sc
     beta1 = 0.5 # Beta1 hyperparam for Adam optimizers
 
-    dataset = MatlabDataset(orig_image_size, nc, keyword,
+    dataset = TeethDataset(orig_image_size, nc, dataroot,
                            transform=transforms.Compose([
                                transforms.ToTensor()
                            ]))
@@ -125,11 +122,11 @@ def run():
     print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
 
-    # netG = torch.load("netG1576613032.5378401.pt")
+    # netG = torch.load("netG1576686127.5698137.pt")
     netG = Generator(nz, image_size, nc, hg).to(device)
     netG.apply(weights_init)
     #
-    # netD = torch.load("netD1576613032.4863477.pt")
+    # netD = torch.load("netD1576686127.5539012.pt")
     netD = Discriminator(image_size, nc, hd).to(device)
     netD.apply(weights_init)
 
@@ -151,8 +148,8 @@ def run():
 
     iters = 0
 
-    # wandb.watch(netG, log='all')
-    # wandb.watch(netD, log='all')
+    wandb.watch(netG, log='all')
+    wandb.watch(netD, log='all')
 
     print("Starting Training Loop...")
     # For each epoch
@@ -169,7 +166,7 @@ def run():
             gpu_data = data.float().to(device)
             with torch.no_grad():
                 gpu_data = torch.nn.functional.interpolate(gpu_data, size=image_size, mode='bilinear', align_corners=False)
-                # gpu_data = gpu_data.mul(6.0)
+                gpu_data = gpu_data.mul(6.0)
             b_size = gpu_data.size(0)
             label = torch.full((b_size,), real_label, device=device)
             # Forward pass real batch through D
@@ -218,13 +215,13 @@ def run():
             optimizerG.step()
 
             # Output training stats
-            if i%2 == 0:
+            if i == 0:
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, num_epochs, i, len(dataloader),
                          errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-                # wandb.log({'loss_D':errD.item(), 'loss_G':errG.item(), 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
+                wandb.log({'loss_D':errD.item(), 'loss_G':errG.item(), 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
 
-            if i==0 and epoch%10 == 0:
+            if iters % 100 == 0:
                 plt.figure(figsize=(2,2))
                 plt.axis("off")
                 with torch.no_grad():
@@ -235,6 +232,7 @@ def run():
                 plt.show()
                 # wandb.log({'examples': [wandb.Image(np.ones((64,64,3)), caption='ep%i'%(epoch))]}, step=epoch)
                 netG.train()
+            iters += 1
 
 
     netD._forward_hooks.clear()
@@ -242,7 +240,3 @@ def run():
     torch.save(netD, 'netD' + str(time.time() )+ '.pt')
     torch.save(netG, 'netG' + str(time.time() )+ '.pt')
 
-
-if __name__ == '__main__':
-    import cProfile
-    cProfile.run('run()', 'stats3')
