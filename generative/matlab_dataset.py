@@ -15,23 +15,12 @@ class TeethDataset(Dataset):
         self.channels = channels;
         self.root_dir = root_dir
         self.transform = transform
-        self.files = glob.glob("meshes/maps/*p.mat")
+        self.files = glob.glob("meshes/humans/*.mat")
 
     def __len__(self):
         return len(self.files)
 
     def __getitem__(self, idx):
-        # if torch.is_tensor(idx):
-        #     idx = idx.tolist()
-        # if not isinstance(idx, list):
-        #     idx = [idx];
-        #
-        # batch = np.empty((len(idx), self.channels, self.size, self.size), dtype=np.float32)
-        # for i, ii in enumerate(idx):
-        #     mat = loadmat(self.files[ii])['pushed_function']
-        #     if self.transform:
-        #         mat = self.transform(mat)
-        #     batch[i, :, :, :] = mat
         mat = loadmat(self.files[idx])['tiled_rot']
         if self.transform:
             mat = self.transform(mat)
