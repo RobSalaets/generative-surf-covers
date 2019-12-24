@@ -30,15 +30,15 @@ class Generator(nn.Module):
         self.nc = nc
         self.hg = hg
         self.c1 = nn.ConvTranspose2d(nz, hg, 4, 1, 0, 0, bias=False)
-        self.bn1 = nn.BatchNorm2d(hg)
+        # self.bn1 = nn.BatchNorm2d(hg, affine=False)
         self.r1 = nn.LeakyReLU(negative_slope=0.2, inplace=True) # 4x4
         self.c2 = PeriodicConvTranspose2D(hg, hg // 2, 3, 2, 1, False)
-        self.bn2 = nn.BatchNorm2d(hg//2)
+        # self.bn2 = nn.BatchNorm2d(hg//2, affine=False)
         # 8x8
         self.c3 = PeriodicConvTranspose2D(hg // 2, hg // 4, 3, 2, 1, False)
-        self.bn3 = nn.BatchNorm2d(hg // 4)
+        # self.bn3 = nn.BatchNorm2d(hg // 4, affine=False)
         self.c4 = PeriodicConvTranspose2D(hg // 4, hg // 8, 3, 2, 1, False)
-        self.bn4 = nn.BatchNorm2d(hg // 8)
+        # self.bn4 = nn.BatchNorm2d(hg // 8, affine=False)
 
         # 16x16
         self.c5 = PeriodicConvTranspose2D(hg // 8, nc, 3, 2, 1, False)
@@ -46,16 +46,16 @@ class Generator(nn.Module):
 
     def forward(self, inp):
         oc1 = self.c1(inp)
-        oc1 = self.bn1(oc1)
+        # oc1 = self.bn1(oc1)
         oc1 = self.r1(oc1)
         oc2 = self.c2(oc1)
-        oc2 = self.bn2(oc2)
+        # oc2 = self.bn2(oc2)
         oc2 = self.r1(oc2)
         oc3 = self.c3(oc2)
-        oc3 = self.bn3(oc3)
+        # oc3 = self.bn3(oc3)
         oc3 = self.r1(oc3)
         oc4 = self.c4(oc3)
-        oc4 = self.bn4(oc4)
+        # oc4 = self.bn4(oc4)
         oc4 = self.r1(oc4)
         oc5 = self.c5(oc4)
 
@@ -97,10 +97,10 @@ def run():
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    # wandb.init(project="teeth-gan")
+    wandb.init(project="teeth-gan")
 
     keyword = "pushed_function"
-    workers = 2
+    workers = 0
     batch_size = 32
     image_size = 64
     orig_image_size = 128
@@ -108,7 +108,7 @@ def run():
     nz = 100 # Latent vector size
     hg = 128 # number of feature maps
     hd = 128 # number of feature maps
-    num_epochs = 1200
+    num_epochs = 100
     lr_sc = 2
     lr_g = 0.0005*lr_sc
     lr_d = 0.00001*lr_sc
@@ -125,11 +125,11 @@ def run():
     print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
 
-    # netG = torch.load("netG1576613032.5378401.pt")
+    # netGold = torch.load("netGhumans2400.pt")
     netG = Generator(nz, image_size, nc, hg).to(device)
     netG.apply(weights_init)
-    #
-    # netD = torch.load("netD1576613032.4863477.pt")
+
+    # netD = torch.load("netDhumans2400.pt")
     netD = Discriminator(image_size, nc, hd).to(device)
     netD.apply(weights_init)
 
@@ -148,17 +148,13 @@ def run():
     optimizerG = optim.Adam(netG.parameters(), lr=lr_g, betas=(beta1, 0.999))
 
     # Training Loop
-
-    iters = 0
-
-    # wandb.watch(netG, log='all')
-    # wandb.watch(netD, log='all')
+    wandb.watch(netG, log='all')
+    wandb.watch(netD, log='all')
 
     print("Starting Training Loop...")
     # For each epoch
     for epoch in range(num_epochs):
         # For each batch in the dataloader
-        last_acc = 0.0
         for i, data in enumerate(dataloader, 0):
             ############################
             # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
@@ -222,7 +218,7 @@ def run():
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, num_epochs, i, len(dataloader),
                          errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-                # wandb.log({'loss_D':errD.item(), 'loss_G':errG.item(), 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
+                wandb.log({'loss_D':errD.item(), 'loss_G':errG.item(), 'D(x)':D_x, 'D(G(z))_pre': D_G_z1, 'D(G(z))_post' : D_G_z2}, step=epoch)
 
             if i==0 and epoch%10 == 0:
                 plt.figure(figsize=(2,2))

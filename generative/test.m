@@ -1,7 +1,8 @@
 clear
 
-for ii = 10:20
+for ii = 11:50
+    ii
     figure
-    load(strcat('h',num2str(ii)))
-    imagesc(pushed_function*10, [min(pushed_function*10,[],'all'), max(pushed_function*10,[],'all')])
+    load(strcat('n',num2str(ii)))
+    imagesc((pushed_function + 1)*0.25)
 end

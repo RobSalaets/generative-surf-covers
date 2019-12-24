@@ -8,14 +8,36 @@ from train2 import Generator
 from matplotlib.widgets import Slider
 import scipy.io
 
+import torchvision.transforms as transforms
+from matlab_dataset import MatlabDataset
+
 if __name__ == '__main__':
-    netG = torch.load("netGhumans1200.pt", map_location='cpu')
+    netG = torch.load("netGhumans2400nobn.pt", map_location='cpu')
     netG.eval()
 
     N = 4  #number of images
 
     fixed_noise = torch.randn(N, 100, 1, 1)
     fake = netG(fixed_noise)
+
+    dataset = MatlabDataset(128, 3, 'pushed_function',
+                            transform=transforms.Compose([
+                                transforms.ToTensor()
+                            ]))
+    # Create the dataloader
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32,
+                                             shuffle=True, num_workers=2)
+    device = torch.device("cuda:0")
+    # for i, data in enumerate(dataloader, 0):
+    #     # Format batch
+    #     gpu_data = data.float().to(device)
+    #     with torch.no_grad():
+    #         # gpu_data = torch.nn.functional.interpolate(gpu_data, size=64, mode='bilinear', align_corners=False)
+    #         plt.figure()
+    #         plt.axis("off")
+    #         plt.imshow(
+    #             np.transpose(vutils.make_grid(gpu_data[0].detach().cpu(), padding=0, normalize=True).cpu(), (1, 2, 0)))
+    #         plt.show()
 
     scipy.io.savemat('gen0.mat', {'pushed_function' : fake[0].detach().numpy()})
     scipy.io.savemat('gen1.mat', {'pushed_function': fake[1].detach().numpy()})
@@ -25,7 +47,7 @@ if __name__ == '__main__':
     # plt.figure(figsize=(8, 8))
     # plt.axis("off")
     # plt.imshow(
-    #     np.transpose(vutils.make_grid(fake.detach(), padding=2, normalize=True).cpu(), (1, 2, 0)))
+    #     np.transpose(vutils.make_grid(fake.detach(), padding=0, normalize=True).cpu(), (1, 2, 0)))
     # plt.show()
     #
     #
