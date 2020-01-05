@@ -206,15 +206,25 @@ classdef Gluer < handle
                 %create a local copy of cones indices
                 cones = obj.cones;
                 %update the adjacenct matrix of the divided mesh
-                AA = obj.A;
+%                 AA = obj.A;
+                %ADDITION: calc weights AAWeights
+                [Ai, Aj] = find(obj.A);
+                AAdist = vecnorm((obj.V_divided_mesh(Ai,:)-obj.V_divided_mesh(Aj,:))');
+                AAweights = sparse(Ai,Aj,AAdist);
+                
                 % find a path from the generic point to the first cone that
                 % intersect none of the other cones
                 cones_t = setdiff(cones,cones(1));
-                AA(cones_t,:) = 0;
-                AA(:,cones_t) = 0;
-                [ds_cone_to_generic_vertex(1),p] = graphshortestpath(AA,cones(1),genertic_vertex);
+%                 AA(cones_t,:) = 0;
+%                 AA(:,cones_t) = 0;
+                for cti = 1:length(cones_t)
+                    AAweights(cones_t(cti),Aj(Ai==cones_t(cti))) = inf;
+                    AAweights(Ai(Aj==cones_t(cti)),cones_t(cti)) = inf;
+                end
+                [ds_cone_to_generic_vertex(1),p] = graphshortestpath(AAweights,cones(1),genertic_vertex);
                 % get the edges in the path
                 E = [p(1:end-1)' p(2:end)'];
+                ds_cone_to_generic_vertex(1) = length(p)-1; %ADD
                 % cut along the first path
                 [G,I] = cut_edges(obj.T_divided_mesh,E);
                 I1=I;
@@ -233,27 +243,56 @@ classdef Gluer < handle
                     f = t.freeBoundary();
                     f = f(:,1);
                     % find where the first cone is on the buondary
-                    ind1 = find(f == cones(1));
+%                     ind1 = find(f == cones(1));
                     % circle f so that the first cone will be the first
                     % index on the boundary of the cut mesh
-                    f = circshift(f,1-ind1);
+%                     f = circshift(f,1-ind1);
+                    wrapN = @(x, n) (1 + mod(x-1, n));
+                    ind1 = find(f == cones(i-1));
+                    none_cones = unique([none_cones;
+                                         f(wrapN(ind1+ds_cone_to_generic_vertex(i-1), length(f)));
+                                         f(wrapN(ind1-ds_cone_to_generic_vertex(i-1), length(f)))]);
                     %find the first copy of the generic point
-                    non_cone = f(1+ds_cone_to_generic_vertex(1));
+%                     non_cone = f(1+ds_cone_to_generic_vertex(1));
+                    %ADDITION: find 'best' non_cone
+                    dist_mean_nc = zeros(length(none_cones),1);
+                    for nci = 1:length(none_cones)
+                        [gi, ~] = ind2sub(size(G),find(G==none_cones(nci)));
+                        dist_mean_nc(nci) = vecnorm(W(cones(i),:)-mean(W(unique(G(gi,:)),:)));
+                    end
+                    [~,mean_nc_midx] = min(dist_mean_nc);
+                    non_cone = none_cones(mean_nc_midx);
                     % try and find a path from the current cone to the
                     % first copy of the generic vertex that does not
                     % intersect the boundary of the cut mesh or any of the
                     % other cones
                     ff = setdiff(f,non_cone);
-                    AA = adjacency_matrix(G);   
-                    AA(ff,:) = 0;
-                    AA(:,ff) = 0;
+%                     AA = adjacency_matrix(G);   
+                    % ADDITION: weights
+                    [Ai,Aj] = find(adjacency_matrix(G));
+                    AAdist = vecnorm((W(Ai,:)-W(Aj,:))');
+                    AAweights = sparse(Ai,Aj,AAdist);
+%                     AA(ff,:) = 0;
+%                     AA(:,ff) = 0;
+                    for cti = 1:length(ff)
+                        AAweights(ff(cti),Aj(Ai==ff(cti))) = inf;
+                        AAweights(Ai(Aj==ff(cti)),ff(cti)) = inf;
+                    end
                     cones_t = setdiff(cones,cones(i));
-                    AA(cones_t,:) = 0;
-                    AA(:,cones_t) = 0;                     
-                    [ds_cone_to_generic_vertex(i),p] = graphshortestpath(AA,cones(i),non_cone);
+%                     AA(cones_t,:) = 0;
+%                     AA(:,cones_t) = 0;     
+                    for cti = 1:length(cones_t)
+                        AAweights(cones_t(cti),Aj(Ai==cones_t(cti))) = inf;
+                        AAweights(Ai(Aj==cones_t(cti)),cones_t(cti)) = inf;
+                    end
+                    [ds_cone_to_generic_vertex(i),p] = graphshortestpath(AAweights,cones(i),non_cone);
+                    if ds_cone_to_generic_vertex(i) ~= inf
+                        ds_cone_to_generic_vertex(i) = length(p)-1; %ADD
+                    end
                     %if we could find no path then subdivide the mesh and
                     %try again
                     if ds_cone_to_generic_vertex(i) == inf
+                        assert(0==1); %subd wont work atm
                         %subdivide the mesh
                         [obj.V_divided_mesh, obj.T_divided_mesh, cutE, J] = subdivide_mesh_along_line(obj,G,W,non_cone,cones(i),I);
                         % update the map from the divided triangles to the
@@ -271,15 +310,18 @@ classdef Gluer < handle
                     E = [p(1:end-1)' p(2:end)'];
                     [G,I1] = cut_edges(G,E);
                     [~,IA] = unique(I1);
+                    
                     cones = IA(cones);
                     %%find the indices of the copies of the generic vertex
                     %%in the boundary of the cut mesh
-                    none_cones_new = [];
-                    for j =1:length(none_cones)
-                        fin = find(I1==none_cones(j));
-                        none_cones_new = [none_cones_new; fin];
-                    end
-                    none_cones = none_cones_new;
+                    
+%                     none_cones_new = [];
+%                     for j =1:length(none_cones)
+%                         fin = find(I1==none_cones(j));
+%                         none_cones_new = [none_cones_new; fin];
+%                     end
+%                     none_cones = none_cones_new;
+                    none_cones = IA(none_cones);
                     %update I the map from cut vertices to uncut vertices
                     I = I(I1);
                     W = W(I1,:);
