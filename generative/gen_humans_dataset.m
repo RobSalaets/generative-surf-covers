@@ -18,7 +18,7 @@ minAGD = 1110;
 normF = 2000;
 V = points / normF;
 V = V - mean(V, 1);
-
+inds = [inds(1) inds(3) inds(5) inds(4) inds(2)];
 gluer = Gluer(V,faces,inds,tuple1,minAGD);
 flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus);
 cutMeshO = CutMesh(gluer, flattenerO);
