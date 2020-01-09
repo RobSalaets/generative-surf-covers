@@ -70,7 +70,7 @@ classdef CutMesh < handle
     end
     
     methods
-        function obj=CutMesh(gluer,flattener)
+        function obj=CutMesh(gluer,flattener, compute_scale)
             %set some attributes
             obj.gluer = gluer;
             obj.flattener = flattener;
@@ -118,8 +118,10 @@ classdef CutMesh < handle
                     [obj.uncutTsTocutTs{obj.Ts_plane_to_Ts_orig_mesh(i)}; i];
             end
             % compute area distortion, angles distortion of each face and vertex 
-            obj.compute_scale;
-       
+            if compute_scale == 1
+                
+                obj.compute_scale;
+            end
         end
         
         function sort_uncut2cutInds_by_scale(obj)
