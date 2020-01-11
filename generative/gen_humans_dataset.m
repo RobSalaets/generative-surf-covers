@@ -1,8 +1,6 @@
 clear
 close all
 
-profile on
-
 load('evalues.mat')
 load('evectors.mat')
 load('meanShape.mat')
@@ -25,7 +23,7 @@ inds = [inds(1) inds(3) inds(5) inds(4) inds(2)];
 gluer = Gluer(V,faces,inds,tuple1,minAGD);
 % flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus);
 % cutMeshO = CutMesh(gluer, flattenerO);
-for ii=1:1500
+for ii=1501:4000
     ii
     weights= ((rand(4300,1)*2 -1).*sqrt(evalues)') * scalef;
     variation= squeeze(sum(weights.*evectors,1)) / normF;
@@ -39,7 +37,7 @@ for ii=1:1500
     [pushed_function] = push_functions_to_flattening_edit(cutMesh, newpoints, params);
     save(strcat('generative/meshes/humans/h', num2str(ii)), 'pushed_function')
 end
-profile viewer
+% profile viewer
 
 function [dataFunctions] = push_functions_to_flattening_edit(cutMesh, functions, params)
 
@@ -60,8 +58,8 @@ function [dataFunctions] = push_functions_to_flattening_edit(cutMesh, functions,
         [V_merged, ~, f, vals] = tile(cutMesh, functions, k);
         X = linspace(0, 1-1/sz, sz);
         Y = linspace(0, 1-1/sz, sz);    
-        SI = scatteredInterpolant(V_merged,f(vals))
-        [mX, mY] = meshgrid(X,Y)
+        SI = scatteredInterpolant(V_merged,f(vals));
+        [mX, mY] = meshgrid(X,Y);
         out2 = SI(mX,mY);
 %         [out,tn,al2,al3] = mytri2grid(V_merged', T_merged', f(vals), X, Y);
 %         dataFunctions(:,:,1) = out;
@@ -75,7 +73,7 @@ function [dataFunctions] = push_functions_to_flattening_edit(cutMesh, functions,
         f=functions(:,ii);
 %         [out,tn,al2,al3] = mytri2grid(V_merged', T_merged', f(vals), tn, al2, al3);
         
-        SI = scatteredInterpolant(V_merged,f(vals))
+        SI = scatteredInterpolant(V_merged,f(vals));
         out2 = SI(mX,mY);
 %         dataFunctions(:,:,ii) = out;
         dataFunctions(:,:,ii) = out2;

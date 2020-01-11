@@ -31,18 +31,17 @@ class Generator(nn.Module):
         self.hg = hg
         self.c1 = nn.ConvTranspose2d(nz, hg, 4, 1, 0, 0, bias=False)
         # self.bn1 = nn.BatchNorm2d(hg, affine=False)
-        self.r1 = nn.LeakyReLU(negative_slope=0.2, inplace=True) # 4x4
+        self.r1 = nn.LeakyReLU(negative_slope=0.2, inplace=True)
         self.c2 = PeriodicConvTranspose2D(hg, hg // 2, 3, 2, 1, False)
         # self.bn2 = nn.BatchNorm2d(hg//2, affine=False)
-        # 8x8
         self.c3 = PeriodicConvTranspose2D(hg // 2, hg // 4, 3, 2, 1, False)
         # self.bn3 = nn.BatchNorm2d(hg // 4, affine=False)
         self.c4 = PeriodicConvTranspose2D(hg // 4, hg // 8, 3, 2, 1, False)
         # self.bn4 = nn.BatchNorm2d(hg // 8, affine=False)
 
-        # 16x16
-        self.c5 = PeriodicConvTranspose2D(hg // 8, nc, 3, 2, 1, False)
-        self.tanh = nn.Tanh() # 64x64
+        self.c5 = PeriodicConvTranspose2D(hg // 8, hg // 16, 3, 2, 1, False)
+        self.c6 = PeriodicConvTranspose2D(hg // 16, nc, 3, 2, 1, False)
+        self.tanh = nn.Tanh()
 
     def forward(self, inp):
         oc1 = self.c1(inp)
@@ -58,8 +57,9 @@ class Generator(nn.Module):
         # oc4 = self.bn4(oc4)
         oc4 = self.r1(oc4)
         oc5 = self.c5(oc4)
-
-        return self.tanh(oc5)
+        oc5 = self.r1(oc5)
+        oc6 = self.c6(oc5)
+        return oc6
 
 
 class Discriminator(nn.Module):
@@ -69,7 +69,9 @@ class Discriminator(nn.Module):
         self.nc = nc
         self.hd = hd
         self.main = nn.Sequential(
-            PeriodicConv2D(nc, hd//8, 3, 2, False),
+            PeriodicConv2D(nc, hd//16, 3, 2, False),
+            nn.LeakyReLU(0.2, inplace=True),
+            PeriodicConv2D(hd//16, hd//8, 3, 2, False),
             nn.LeakyReLU(0.2, inplace=True),
             PeriodicConv2D(hd // 8, hd//4, 3, 2, False),
             nn.BatchNorm2d(hd//4),
@@ -88,9 +90,6 @@ class Discriminator(nn.Module):
         return self.main(inp)
 
 
-# if __name__ == '__main__':
-
-
 def run():
     manualSeed = random.randint(1, 10000)
     print("Random Seed: ", manualSeed)
@@ -102,12 +101,12 @@ def run():
     keyword = "pushed_function"
     workers = 0
     batch_size = 32
-    image_size = 64
+    image_size = 128
     orig_image_size = 128
     nc = 3 # Color channels
-    nz = 100 # Latent vector size
-    hg = 128 # number of feature maps
-    hd = 128 # number of feature maps
+    hg = 256 # number of feature maps
+    hd = 256 # number of feature maps
+    nz = 128 # Latent vector size
     num_epochs = 100
     lr_sc = 2
     lr_g = 0.0005*lr_sc
@@ -118,6 +117,7 @@ def run():
                            transform=transforms.Compose([
                                transforms.ToTensor()
                            ]))
+
     # Create the dataloader
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                              shuffle=True, num_workers=workers)
@@ -125,13 +125,13 @@ def run():
     print(torch.cuda.get_device_name(torch.cuda.current_device()))
 
 
-    # netGold = torch.load("netGhumans2400.pt")
-    netG = Generator(nz, image_size, nc, hg).to(device)
-    netG.apply(weights_init)
-
-    # netD = torch.load("netDhumans2400.pt")
-    netD = Discriminator(image_size, nc, hd).to(device)
-    netD.apply(weights_init)
+    netG = torch.load("netG128.pt")
+    # netG = Generator(nz, image_size, nc, hg).to(device)
+    # netG.apply(weights_init)
+    #
+    netD = torch.load("netD128.pt")
+    # netD = Discriminator(image_size, nc, hd).to(device)
+    # netD.apply(weights_init)
 
     criterion = nn.BCELoss()
 
@@ -148,8 +148,8 @@ def run():
     optimizerG = optim.Adam(netG.parameters(), lr=lr_g, betas=(beta1, 0.999))
 
     # Training Loop
-    wandb.watch(netG, log='all')
-    wandb.watch(netD, log='all')
+    # wandb.watch(netG, log='all')
+    # wandb.watch(netD, log='all')
 
     print("Starting Training Loop...")
     # For each epoch
@@ -163,8 +163,8 @@ def run():
             netD.zero_grad()
             # Format batch
             gpu_data = data.float().to(device)
-            with torch.no_grad():
-                gpu_data = torch.nn.functional.interpolate(gpu_data, size=image_size, mode='bilinear', align_corners=False)
+            # with torch.no_grad():
+            #     gpu_data = torch.nn.functional.interpolate(gpu_data, size=image_size, mode='bilinear', align_corners=False)
                 # gpu_data = gpu_data.mul(6.0)
             b_size = gpu_data.size(0)
             label = torch.full((b_size,), real_label, device=device)
@@ -214,7 +214,7 @@ def run():
             optimizerG.step()
 
             # Output training stats
-            if i%2 == 0:
+            if i%10 == 0:
                 print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
                       % (epoch, num_epochs, i, len(dataloader),
                          errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
@@ -240,5 +240,6 @@ def run():
 
 
 if __name__ == '__main__':
-    import cProfile
-    cProfile.run('run()', 'stats3')
+    # import cProfile
+    # cProfile.run('run()', 'stats3')
+    run()
