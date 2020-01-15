@@ -4,30 +4,32 @@ import torch.utils.data
 import torchvision.utils as vutils
 import numpy as np
 import matplotlib.pyplot as plt
-from train2 import Generator
+from generative.train2 import Generator, Discriminator
 from matplotlib.widgets import Slider
 import scipy.io
 
 import torchvision.transforms as transforms
-from matlab_dataset import MatlabDataset
+from generative.matlab_dataset import MatlabDataset
 
 if __name__ == '__main__':
-    netG = torch.load("netGhumans2400nobn.pt", map_location='cpu')
+    netG = torch.load("netG128_2.pt", map_location='cpu')
     netG.eval()
-
-    N = 4  #number of images
-
-    fixed_noise = torch.randn(N, 100, 1, 1)
-    fake = netG(fixed_noise)
-
-    dataset = MatlabDataset(128, 3, 'pushed_function',
-                            transform=transforms.Compose([
-                                transforms.ToTensor()
-                            ]))
-    # Create the dataloader
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32,
-                                             shuffle=True, num_workers=2)
+    netD = torch.load("netD128_2.pt", map_location='cpu')
+    netD.eval()
+    N = 64  #number of images
+    dataset = MatlabDataset(128, 3, 'pushed_function',transform = transforms.Compose([transforms.ToTensor()]))
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32,shuffle=True, num_workers=1)
     device = torch.device("cuda:0")
+
+    for i, data in enumerate(dataloader, 0):
+    # # Format batch
+        gpu_data = data.float().to(device)
+    res2 = netD(gpu_data)
+
+    fixed_noise = torch.randn(N, 128, 1, 1)
+    fake = netG(fixed_noise)
+    res = netD(fake)
+
     # for i, data in enumerate(dataloader, 0):
     #     # Format batch
     #     gpu_data = data.float().to(device)
@@ -39,16 +41,13 @@ if __name__ == '__main__':
     #             np.transpose(vutils.make_grid(gpu_data[0].detach().cpu(), padding=0, normalize=True).cpu(), (1, 2, 0)))
     #         plt.show()
 
-    scipy.io.savemat('gen0.mat', {'pushed_function' : fake[0].detach().numpy()})
-    scipy.io.savemat('gen1.mat', {'pushed_function': fake[1].detach().numpy()})
-    scipy.io.savemat('gen2.mat', {'pushed_function': fake[2].detach().numpy()})
 
 
-    # plt.figure(figsize=(8, 8))
-    # plt.axis("off")
-    # plt.imshow(
-    #     np.transpose(vutils.make_grid(fake.detach(), padding=0, normalize=True).cpu(), (1, 2, 0)))
-    # plt.show()
+    plt.figure(figsize=(4, 4))
+    plt.axis("off")
+    plt.imshow(
+        np.transpose(vutils.make_grid(fake.detach(), padding=0, normalize=True).cpu(), (1, 2, 0)))
+    plt.show()
     #
     #
     #
@@ -67,14 +66,14 @@ if __name__ == '__main__':
     # n4 = Slider(ax4, 'n4', 0.0, 1.0, valinit=.25, valstep=0.02)
 
 
-    def update(val):
-        sfn = (fixed_noise[:1] * n1.val + fixed_noise[1:2] * n2.val + fixed_noise[2:3] * n3.val + fixed_noise[
-                                                                                                  3:] * n4.val)
-
-        nfake = netG(sfn).detach()
-        nearest = None
-        im.set_array(np.transpose(vutils.make_grid(nfake[0], padding=2, normalize=True).cpu(), (1, 2, 0)))
-        fig.canvas.draw_idle()
+    # def update(val):
+    #     sfn = (fixed_noise[:1] * n1.val + fixed_noise[1:2] * n2.val + fixed_noise[2:3] * n3.val + fixed_noise[
+    #                                                                                               3:] * n4.val)
+    #
+    #     nfake = netG(sfn).detach()
+    #     nearest = None
+    #     im.set_array(np.transpose(vutils.make_grid(nfake[0], padding=2, normalize=True).cpu(), (1, 2, 0)))
+    #     fig.canvas.draw_idle()
 
 
     # n1.on_changed(update)

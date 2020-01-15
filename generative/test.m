@@ -1,8 +1,7 @@
-clear
+load('testgen128.mat')
 
-for ii = 11:50
-    ii
-    figure
-    load(strcat('n',num2str(ii)))
-    imagesc((pushed_function + 1)*0.25)
-end
+m = min(pushed_function, [],'all');
+M = max(pushed_function, [], 'all');
+resc = (pushed_function-m)./(M-m);
+figure
+imagesc(permute(resc, [2 3 1]))

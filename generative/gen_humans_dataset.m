@@ -23,7 +23,7 @@ inds = [inds(1) inds(3) inds(5) inds(4) inds(2)];
 gluer = Gluer(V,faces,inds,tuple1,minAGD);
 % flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus);
 % cutMeshO = CutMesh(gluer, flattenerO);
-for ii=1501:4000
+for ii=5001:8000
     ii
     weights= ((rand(4300,1)*2 -1).*sqrt(evalues)') * scalef;
     variation= squeeze(sum(weights.*evectors,1)) / normF;
