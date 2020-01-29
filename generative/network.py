@@ -8,8 +8,8 @@ import copy
 
 
 # defined for code simplicity.
-def deconv(layers, c_in, c_out, k_size, stride=1, pad=0, leaky=True, bn=False, wn=False, pixel=False, only=False):
-    if wn:  layers.append(equalized_conv2d(c_in, c_out, k_size, stride, pad))
+def deconv(layers, c_in, c_out, k_size, stride=1, pad=0, leaky=True, bn=False, wn=False, pixel=False, only=False, periodic=False):
+    if wn:  layers.append(equalized_conv2d(c_in, c_out, k_size, stride, pad, periodic))
     else:   layers.append(nn.Conv2d(c_in, c_out, k_size, stride, pad))
     if not only:
         if leaky:   layers.append(nn.LeakyReLU(0.2))
@@ -18,9 +18,9 @@ def deconv(layers, c_in, c_out, k_size, stride=1, pad=0, leaky=True, bn=False, w
         if pixel:   layers.append(pixelwise_norm_layer())
     return layers
 
-def conv(layers, c_in, c_out, k_size, stride=1, pad=0, leaky=True, bn=False, wn=False, pixel=False, gdrop=True, only=False):
+def conv(layers, c_in, c_out, k_size, stride=1, pad=0, leaky=True, bn=False, wn=False, pixel=False, gdrop=True, only=False, periodic=False):
     if gdrop:       layers.append(generalized_drop_out(mode='prop', strength=0.0))
-    if wn:          layers.append(equalized_conv2d(c_in, c_out, k_size, stride, pad, initializer='kaiming'))
+    if wn:          layers.append(equalized_conv2d(c_in, c_out, k_size, stride, pad, periodic, initializer='kaiming'))
     else:           layers.append(nn.Conv2d(c_in, c_out, k_size, stride, pad))
     if not only:
         if leaky:   layers.append(nn.LeakyReLU(0.2))
@@ -84,7 +84,7 @@ class Generator(nn.Module):
         if self.flag_norm_latent:
             layers.append(pixelwise_norm_layer())
         layers = deconv(layers, self.nz, ndim, 4, 1, 3, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise)
-        layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise)
+        layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise, periodic=True)
         return  nn.Sequential(*layers), ndim
 
     def intermediate_block(self, resl):
@@ -102,11 +102,11 @@ class Generator(nn.Module):
         layers = []
         layers.append(nn.Upsample(scale_factor=2, mode='nearest'))       # scale up by factor of 2.0
         if halving:
-            layers = deconv(layers, ndim*2, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise)
-            layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise)
+            layers = deconv(layers, ndim*2, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise, periodic=True)
+            layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise, periodic=True)
         else:
-            layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise)
-            layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise)
+            layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise, periodic=True)
+            layers = deconv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, self.flag_pixelwise, periodic=True)
         return  nn.Sequential(*layers), ndim, layer_name
     
     def to_rgb_block(self, c_in):
@@ -203,7 +203,7 @@ class Discriminator(nn.Module):
         ndim = self.ndf
         layers = []
         layers.append(minibatch_std_concat_layer())
-        layers = conv(layers, ndim+1, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False)
+        layers = conv(layers, ndim+1, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False, periodic=True)
         layers = conv(layers, ndim, ndim, 4, 1, 0, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False)
         layers = linear(layers, ndim, 1, sig=self.flag_sigmoid, wn=self.flag_wn)
         return  nn.Sequential(*layers), ndim
@@ -222,11 +222,11 @@ class Discriminator(nn.Module):
         ndim = int(ndim)
         layers = []
         if halving:
-            layers = conv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False)
-            layers = conv(layers, ndim, ndim*2, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False)
+            layers = conv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False, periodic=True)
+            layers = conv(layers, ndim, ndim*2, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False, periodic=True)
         else:
-            layers = conv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False)
-            layers = conv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False)
+            layers = conv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False, periodic=True)
+            layers = conv(layers, ndim, ndim, 3, 1, 1, self.flag_leaky, self.flag_bn, self.flag_wn, pixel=False, periodic=True)
         
         layers.append(nn.AvgPool2d(kernel_size=2))       # scale up by factor of 2.0
         return  nn.Sequential(*layers), ndim, layer_name

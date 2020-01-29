@@ -27,6 +27,7 @@ class PeriodicConvTranspose2D(nn.Module):
         self.stride = stride
         self.output_padding = output_padding
         self.use_bias = use_bias
+        assert(stride==2)
         assert(kernel == 5 or kernel == 3)
         self.left_pad = 0 if kernel == 3 else 1
         self.top_pad =  0 if kernel == 3 else 1
@@ -35,6 +36,14 @@ class PeriodicConvTranspose2D(nn.Module):
         self.half_kernel = (kernel-1)//2
         self.ct2d = nn.ConvTranspose2d(fin, fout, kernel, stride, 0, 0, bias=use_bias)
         # self.ct2d = nn.ConvTranspose2d(fin, fout, kernel, stride, kernel-1+(kernel-1)//2, output_padding, bias=use_bias)
+
+    @property
+    def weight(self):
+        return self.ct2d.weight
+
+    @weight.setter
+    def weight(self, w):
+        self.ct2d.weight = w
 
     def forward(self, x):
         """
@@ -64,12 +73,26 @@ class PeriodicConv2D(nn.Module):
         self.use_bias = use_bias
 
         # Assumes stride 2
-
-        self.left_pad = (kernel-1) // 2
-        self.top_pad = (kernel-1) // 2
-        self.right_pad = (kernel-1) // 2 -1
-        self.bottom_pad = (kernel-1) // 2 -1
+        assert(stride <=2)
+        if stride == 2:
+            self.left_pad = (kernel-1) // 2
+            self.top_pad = (kernel-1) // 2
+            self.right_pad = (kernel-1) // 2 -1
+            self.bottom_pad = (kernel-1) // 2 -1
+        else:
+            self.left_pad = (kernel - 1) // 2
+            self.top_pad = (kernel - 1) // 2
+            self.right_pad = (kernel - 1) // 2
+            self.bottom_pad = (kernel - 1) // 2
         self.c2d = nn.Conv2d(fin, fout, kernel, stride, 0, bias=use_bias)
+
+    @property
+    def weight(self):
+        return self.c2d.weight
+
+    @weight.setter
+    def weight(self, w):
+        self.c2d.weight = w
 
     def forward(self, x):
         """

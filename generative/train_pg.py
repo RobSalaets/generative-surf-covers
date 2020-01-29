@@ -8,11 +8,12 @@ import torch
 import torch.nn
 import torch.cuda
 import torchvision.transforms as transforms
+import torchvision.utils as vutils
 from torch.autograd import Variable
 from torch.optim import Adam
 from tqdm import tqdm
 import numpy as np
-# import tensorflow as tf
+import matplotlib.pyplot as plt
 
 class Trainer:
     def __init__(self, config):
@@ -34,7 +35,6 @@ class Trainer:
         self.max_resl = config.max_resl
         self.trns_tick = config.trns_tick
         self.stab_tick = config.stab_tick
-        self.batchsize = config.batch_size
         self.TICK = config.TICK
         self.globalIter = 0
         self.globalTick = 0
@@ -87,10 +87,9 @@ class Trainer:
         if floor(self.resl) != 2 :
             self.trns_tick = self.config.trns_tick
             self.stab_tick = self.config.stab_tick
-        
-        self.batchsize = self.loader.batchsize
+
         delta = 1.0/(2*self.trns_tick+2*self.stab_tick)
-        d_alpha = 1.0*self.batchsize/self.trns_tick/self.TICK
+        d_alpha = 1.0*self.loader.batchsize/self.trns_tick/self.TICK
 
         # update alpha if fade-in layer exist.
         if self.fadein['gen'] is not None:
@@ -109,7 +108,7 @@ class Trainer:
                 self.phase = 'dstab'
             
         prev_kimgs = self.kimgs
-        self.kimgs = self.kimgs + self.batchsize
+        self.kimgs = self.kimgs + self.loader.batchsize
         if (self.kimgs%self.TICK) < (prev_kimgs%self.TICK):
             self.globalTick = self.globalTick + 1
             # increase linearly every tick, and grow network structure.
@@ -144,12 +143,12 @@ class Trainer:
             # grow network.
             if floor(self.resl) != prev_resl and floor(self.resl)<self.max_resl+1:
                 self.lr = self.lr * float(self.config.lr_decay)
-                self.G.grow_network(floor(self.resl))
+                self.G.module.grow_network(floor(self.resl))
                 #self.Gs.grow_network(floor(self.resl))
-                self.D.grow_network(floor(self.resl))
+                self.D.module.grow_network(floor(self.resl))
                 self.renew_everything()
-                self.fadein['gen'] = dict(self.G.model.named_children())['fadein_block']
-                self.fadein['dis'] = dict(self.D.model.named_children())['fadein_block']
+                self.fadein['gen'] = dict(self.G.module.model.named_children())['fadein_block']
+                self.fadein['dis'] = dict(self.D.module.model.named_children())['fadein_block']
                 self.flag_flush_gen = True
                 self.flag_flush_dis = True
 
@@ -204,11 +203,9 @@ class Trainer:
     def feed_interpolated_input(self, x):
         if self.phase == 'gtrns' and floor(self.resl)>2 and floor(self.resl)<=self.max_resl:
             alpha = self.complete['gen']/100.0
-            transforms.Scale(size=int(pow(2, floor(self.resl) - 1)), interpolation=0),  # 0: nearest
-            transforms.Scale(size=int(pow(2, floor(self.resl))), interpolation=0),
 
-            x_low = torch.nn.functional.interpolate(x, size=floor(self.resl)-1, mode='bilinear', align_corners=False)
-            x_low = torch.nn.functional.interpolate(x_low, size=floor(self.resl), mode='nearest')
+            x_low = torch.nn.functional.interpolate(x, size=pow(2,floor(self.resl)-1), mode='bilinear', align_corners=False)
+            x_low = torch.nn.functional.interpolate(x_low, size=pow(2,floor(self.resl)), mode='nearest')
             x = torch.add(x.mul(alpha), x_low.mul(1-alpha)) # interpolated_x
 
         if self.use_cuda:
@@ -235,7 +232,7 @@ class Trainer:
         self.z_test = torch.FloatTensor(self.loader.batchsize, self.nz)
         if self.use_cuda:
             self.z_test = self.z_test.cuda()
-        self.z_test = Variable(self.z_test, volatile=True)
+        self.z_test = Variable(self.z_test)
         self.z_test.data.resize_(self.loader.batchsize, self.nz).normal_(0.0, 1.0)
         
         for step in range(2, self.max_resl+1+5):
@@ -260,13 +257,13 @@ class Trainer:
                 self.z.data.resize_(self.loader.batchsize, self.nz).normal_(0.0, 1.0)
                 self.x_tilde = self.G(self.z)
                
-                self.fx = self.D(self.x) # x uit dataloader is niet resized en batch
+                self.fx = self.D(self.x)
                 self.fx_tilde = self.D(self.x_tilde.detach())
 
                 loss_d = self.mse(self.fx.squeeze(), self.real_label) + \
                                   self.mse(self.fx_tilde, self.fake_label)
                 loss_d.backward()
-                self.opt_d.step()
+                self.opt_d.step() 
 
                 # update generator.
                 fx_tilde = self.D(self.x_tilde)
@@ -277,8 +274,14 @@ class Trainer:
                 # logging.
                 log_msg = ' [E:{0}][T:{1}][{2:6}/{3:6}]  errD: {4:.4f} | errG: {5:.4f} | [lr:{11:.5f}][cur:{6:.3f}][resl:{7:4}][{8}][{9:.1f}%][{10:.1f}%]'.format(self.epoch, self.globalTick, self.stack, len(self.loader.dataset), loss_d.item(), loss_g.item(), self.resl, int(pow(2,floor(self.resl))), self.phase, self.complete['gen'], self.complete['dis'], self.lr)
                 tqdm.write(log_msg)
-                if self.stack > 7000:
-                   return
+                if self.stack % (50*self.loader.batchsize) == 0:
+                    plt.figure(figsize=(2, 2))
+                    plt.axis("off")
+                    with torch.no_grad():
+                        plt.imshow(
+                            np.transpose(vutils.make_grid(torch.cat((self.x_tilde.detach().cpu()[0:2], self.x.detach().cpu()[0:2]), dim=0), nrow=2, padding=2, normalize=True).cpu(),
+                                         (1, 2, 0)))
+                    plt.show()
 
 
 

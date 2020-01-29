@@ -1,14 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
-from torch.autograd import Variable
 import torch 
 import torch.nn as nn
-import torchvision.datasets as dsets
-import torchvision.transforms as transforms
 from torch.autograd import Variable
-from PIL import Image
+from generative.layers import PeriodicConv2D, PeriodicConvTranspose2D
 import copy
 from torch.nn.init import kaiming_normal, calculate_gain
 
@@ -64,7 +60,9 @@ class minibatch_std_concat_layer(nn.Module):
         vals = self.adjusted_std(x, dim=0, keepdim=True)
         if self.averaging == 'all':
             target_shape[1] = 1
-            vals = torch.mean(vals, dim=1, keepdim=True)
+            vals = torch.mean(vals, dim=[0,1,2,3], keepdim=True)
+            # vals = torch.mean(vals, dim=1, keepdim=True)
+            # print(' '+ str(vals.detach().item())+ ' ', end='')
         elif self.averaging == 'spatial':
             if len(shape) == 4:
                 vals = mean(vals, axis=[2,3], keepdim=True)             # torch.mean(torch.mean(vals, 2, keepdim=True), 3, keepdim=True)
@@ -98,9 +96,12 @@ class pixelwise_norm_layer(nn.Module):
 
 # for equaliaeed-learning rate.
 class equalized_conv2d(nn.Module):
-    def __init__(self, c_in, c_out, k_size, stride, pad, initializer='kaiming', bias=False):
+    def __init__(self, c_in, c_out, k_size, stride, pad, periodic, initializer='kaiming', bias=False):
         super(equalized_conv2d, self).__init__()
-        self.conv = nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=False)
+        if periodic:
+            self.conv = PeriodicConv2D(c_in,c_out, k_size, stride, use_bias=False)
+        else:
+            self.conv = nn.Conv2d(c_in, c_out, k_size, stride, pad, bias=False)
         if initializer == 'kaiming':    kaiming_normal(self.conv.weight, a=calculate_gain('conv2d'))
         elif initializer == 'xavier':   xavier_normal(self.conv.weight)
         
@@ -115,9 +116,12 @@ class equalized_conv2d(nn.Module):
         
  
 class equalized_deconv2d(nn.Module):
-    def __init__(self, c_in, c_out, k_size, stride, pad, initializer='kaiming'):
+    def __init__(self, c_in, c_out, k_size, stride, pad, periodic, initializer='kaiming'):
         super(equalized_deconv2d, self).__init__()
-        self.deconv = nn.ConvTranspose2d(c_in, c_out, k_size, stride, pad, bias=False)
+        if periodic:
+            self.deconv = PeriodicConvTranspose2D(c_in, c_out, k_size, stride, 1, use_bias=False)
+        else:
+            self.deconv = nn.ConvTranspose2d(c_in, c_out, k_size, stride, pad, bias=False)
         if initializer == 'kaiming':    kaiming_normal(self.deconv.weight, a=calculate_gain('conv2d'))
         elif initializer == 'xavier':   xavier_normal(self.deconv.weight)
         

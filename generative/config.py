@@ -10,10 +10,8 @@ parser.add_argument('--train_data_root', type=str, default='/homes/user/Desktop/
 parser.add_argument('--random_seed', type=int, default=int(time.time()))
 parser.add_argument('--n_gpu', type=int, default=1)             # for Multi-GPU training.
 
-parser.add_argument('--batch_size', type=int, default=32)
-
 ## training parameters.
-parser.add_argument('--lr', type=float, default=0.001)          # learning rate.
+parser.add_argument('--lr', type=float, default=0.0003)          # learning rate.
 parser.add_argument('--lr_decay', type=float, default=0.87)     # learning rate decay at every resolution transition.
 parser.add_argument('--eps_drift', type=float, default=0.001)   # coeff for the drift loss.
 parser.add_argument('--smoothing', type=float, default=0.997)   # smoothing factor for smoothed generator.
@@ -23,8 +21,8 @@ parser.add_argument('--ngf', type=int, default=256)             # feature dimens
 parser.add_argument('--ndf', type=int, default=256)             # feature dimension of first layer of discriminator.
 parser.add_argument('--TICK', type=int, default=1000)           # 1 tick = 1000 images = (1000/batch_size) iter.
 parser.add_argument('--max_resl', type=int, default=7)          # 10-->1024, 9-->512, 8-->256
-parser.add_argument('--trns_tick', type=int, default=200)       # transition tick
-parser.add_argument('--stab_tick', type=int, default=100)       # stabilization tick
+parser.add_argument('--trns_tick', type=int, default=50)       # transition tick
+parser.add_argument('--stab_tick', type=int, default=50)       # stabilization tick
 
 
 ## network structure.
