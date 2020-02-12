@@ -91,13 +91,15 @@ class Generator(nn.Module):
         halving = False
         layer_name = 'intermediate_{}x{}_{}x{}'.format(int(pow(2,resl-1)), int(pow(2,resl-1)), int(pow(2, resl)), int(pow(2, resl)))
         ndim = self.ngf
-        if resl==3 or resl==4 or resl==5:
-            halving = False
-            ndim = self.ngf
-        elif resl==6 or resl==7 or resl==8 or resl==9 or resl==10:
+        # if resl==3 or resl==4 or resl==5:
+        #     halving = False
+        #     ndim = self.ngf
+        # elif resl==6 or resl==7 or resl==8 or resl==9 or resl==10:
+        if resl > 3:
             halving = True
-            for i in range(int(resl)-5):
+            for i in range(int(resl)-3):
                 ndim = ndim/2
+
         ndim = int(ndim)
         layers = []
         layers.append(nn.Upsample(scale_factor=2, mode='nearest'))       # scale up by factor of 2.0

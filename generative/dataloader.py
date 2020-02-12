@@ -7,7 +7,7 @@ from math import floor
 class MatlabDataLoader:
     def __init__(self):
         # self.batch_table = {4:32, 8:32, 16:32, 32:16, 64:16, 128:16, 256:12, 512:3, 1024:1} # change this according to available gpu memory.
-        self.batch_table = {4:64, 8:64, 16:64, 32:64, 64:64, 128:64, 256:64, 512:64, 1024:64} # change this according to available gpu memory.
+        self.batch_table = {4:64, 8:64, 16:64, 32:32, 64:32, 128:16, 256:12, 512:3, 1024:1} # change this according to available gpu memory.
         self.batchsize = int(self.batch_table[pow(2,2)])        # we start from 2^2=4
         self.imsize = int(pow(2,2))
         self.num_workers = 0
