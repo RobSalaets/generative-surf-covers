@@ -5,12 +5,12 @@ function E = cut_graph(V,T)
     tri  = triangulation(T,V);
     % create the dual graph
     E = tri.edges();
-    dual_edges = tri.edgeAttachments(E);
+    dual_edges = tri.edgeAttachments(E);  %returns triangles lying l/r from edge, therefore this constructs dual edges, as faces become verts
     dual_edges = cell2mat(dual_edges);
     % create the dual graph adjacency matrix
     A = sparse(dual_edges(:,1),dual_edges(:,2),ones(length(dual_edges),1),length(T),length(T));
     A = A+ A';    
-    gr = graph(A);    
+    gr = graph(A);    %graph with orig faces as nodes and bidirectional
     %Tree is a matrix of the tree in G
     Tree = gr.minspantree;   
     dual_tree_edges = Tree.Edges;

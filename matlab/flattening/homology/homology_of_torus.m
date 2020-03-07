@@ -8,6 +8,9 @@ function hb = homology_of_torus(T,V)
     Ea = sparse(E(:,1),E(:,2),ones(size(E,1),1),size(V,1),size(V,1));
     Ea = Ea + Ea';
     %find the first cycle on the cut graph
+    %Why does looking for loops make sense? MST will create a disk
+    %connectivity because of minimal representation. Genus one will have 2
+    %loops. Try to force first loop to pass certain vertex
     hb{1} = find_longest_loop_in_graph(Ea);
     c = [hb{1}(1:end-1); hb{1}(2:end)]';
     hb{1}  = hb{1}';

@@ -77,7 +77,7 @@ classdef Gluer < handle
                 'there are %d permutations but %d cones given',length(obj.product_one_tuple),length(obj.cones));
             %% cut
             %cut the mesh to a disc topology and subdivide if necessary
-            [G1,W1,cut_sphere_to_sphere,ds_cone_to_generic_vertex] = subdivide_and_cut(obj,genertic_vertex);
+            [G1,W1,cut_sphere_to_sphere,ds_cone_to_generic_vertex] = subdivide_and_cut2(obj,genertic_vertex);
             % find the indices of the cones on the cut mesh
             [~,IA] = unique(cut_sphere_to_sphere);
             cones_after_cutting = IA(cones)';
@@ -85,6 +85,7 @@ classdef Gluer < handle
             obj.l = size(W1,1);
             % create the triangulation object of the cut mesh
             t1 = triangulation(G1,W1);
+            visualize_with_lms(G1,W1, [], t1.freeBoundary());
             %% copy the cut mesh to get d copies 
             obj.T_cut_sphere = G1;
             obj.V_cut_sphere = W1;

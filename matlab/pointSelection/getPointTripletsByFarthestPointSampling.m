@@ -52,7 +52,7 @@ if n>3
     end
     
     AGD_max_idx = find(AGD_maxima);
-    AGD_max_idx = constraint(AGD_max_idx, F, params);
+%     AGD_max_idx = constraint(AGD_max_idx, F, params);
     AGD_max_vals = AGD(AGD_max_idx);
     [~,idx] = sort(AGD_max_vals,'descend');
     
