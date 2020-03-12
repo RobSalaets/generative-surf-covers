@@ -85,7 +85,7 @@ classdef Gluer < handle
             obj.l = size(W1,1);
             % create the triangulation object of the cut mesh
             t1 = triangulation(G1,W1);
-            visualize_with_lms(G1,W1, [], t1.freeBoundary());
+%             visualize_with_lms(G1,W1, [], t1.freeBoundary());
             %% copy the cut mesh to get d copies 
             obj.T_cut_sphere = G1;
             obj.V_cut_sphere = W1;

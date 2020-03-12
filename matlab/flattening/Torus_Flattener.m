@@ -46,10 +46,10 @@ classdef Torus_Flattener < handle
     end
     
     methods
-        function obj=Torus_Flattener(V,T)
+        function obj=Torus_Flattener(V,T,idx)
             % hb is a 2 by 1 cell array, where hb{i} is the indices of
             %the vertices in the it'h homology cycle
-            hb = homology_of_torus(T,V);
+            hb = homology_of_torus2(T,V,idx);
             % make sure the cycle intersect at a single vertex
             assert(length(intersect(hb{1},hb{2}))==1,'The homology cycles intersect in an inappropriate way.');
             obj.vertex = intersect(hb{1},hb{2});
@@ -117,7 +117,8 @@ classdef Torus_Flattener < handle
             m=min(min(tril(obj.L,-1)));
             if m<0
                 warning('Mesh is not Delaunay!!');
-                clamp=1e-2;
+%                 clamp=1e-2;
+                clamp=0.0001;
                 fprintf('clamping negative weights to %f\n',clamp);
                 obj.L(obj.L<0)=clamp;
                 % now fix the laplacian

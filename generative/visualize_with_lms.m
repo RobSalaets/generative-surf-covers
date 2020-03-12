@@ -26,17 +26,24 @@ function visualize_with_lms(faces, newpoints, varargin)
     axis vis3d
     axis equal
     hold on
-    lms = V(lms_idx,:);
+    
+    
     
     maxdim = max(max(abs(V)));
     xlim([-maxdim maxdim]);
     ylim([-maxdim maxdim]);
     zlim([-maxdim maxdim]);
-    scatter3(lms(:,1), lms(:,2),lms(:,3), 'filled')
-
     
-    if length(lms_idx) < 50
-    
-        text(lms(:,1), lms(:,2), lms(:,3), cellstr(num2str(lms_idx(:))),'Color','red')
+    if iscell(lms_idx)
+        for ii=1:length(lms_idx)
+            lms = V(lms_idx{ii},:);
+            scatter3(lms(:,1), lms(:,2),lms(:,3), 'filled')
+        end
+    else
+        lms = V(lms_idx,:);
+        scatter3(lms(:,1), lms(:,2),lms(:,3), 'filled', 'red')
+        if length(lms_idx) < 50
+            text(lms(:,1), lms(:,2), lms(:,3), cellstr(num2str(lms_idx(:))),'Color','green')
+        end
     end
 end
