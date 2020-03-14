@@ -1,11 +1,16 @@
 clear
 close all
 
-tuple = {{[6, 7, 8, 9, 10],[1],[2],[3],[4],[5]},{[1, 7, 3, 4, 9],[2],[5],[6],[8],[10]...
-    },{[1, 8, 4, 3, 7],[2],[5],[6],[9],[10]},{[2, 5, 4, 7, 6],[1],[3],[8],[9],[10]},{[2, 10, 9, 4, 5],...
-    [1],[3],[6],[7],[8]}};
+tuple = {{[6, 7, 8, 9, 10],[1],[2],[3],[4],[5]},
+    {[1, 7, 3, 4, 9],[2],[5],[6],[8],[10]...
+    },
+    {[1, 8, 4, 3, 7],[2],[5],[6],[9],[10]},
+    {[2, 5, 4, 7, 6],[1],[3],[8],[9],[10]},
+    {[2, 10, 9, 4, 5],...
+    [1],[3],[6],[7],[8]}
+    };
 
-for m = 2:2
+for m = 0:1
     for ii = 0:1
         [V,T] = read_ply(sprintf('tr_%d_%03d.ply',m, ii));
     
@@ -16,25 +21,40 @@ for m = 2:2
         [cones, AGD] = getPointTripletsByFarthestPointSampling(V, T, params);
         [cones, min_agd_point] = sort_cones_in_plane(V,T, cones, AGD, [0 1 0]);
         
-        visualize_with_lms(T,V,[], [cones, min_agd_point])
+%         visualize_with_lms(T,V,[], [cones, min_agd_point])
         
         gluer = Gluer(V,T,cones,tuple,min_agd_point);
         %%
         target = [0.00282030927717228,0.334446865442616,-0.0923488374371154];
         [~, iloc] = min(vecnorm((V-repmat(target,[size(V,1) 1]))'));
         idx = find(gluer.torus_to_sphere == iloc);
-        flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus, idx);
+        idx = find(gluer.torus_to_sphere == min_agd_point);
+        flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus, []);
         cm = CutMesh(gluer, flattenerO, 1);
-        tr = triangulation(T,V);
-
-        params.sz = 128;
-        [pushed_function] = push_functions_to_flattening_edit(cm, V, params);
-        
-        figure 
-        imagesc((pushed_function + 1)*.7)
+        %%
+        figure
+        quickscatter2d(cm.V,1, '.')
+        hold on
+        fc = cm.V(cm.inds_mesh_divided_to_inds_plane{cones(1)},:);
+        quickscatter2d(fc,1, 'o')
+%         if ii == 0
+%             flattener1 = flattenerO;
+%         end
+%         params.sz = 128;
+%         [pushed_function] = push_functions_to_flattening_edit(cm, V, params);
+%         
+%         figure 
+%         imagesc((pushed_function + 1)*.7)
     end
 end
 
+function quickscatter2d(V, m, c)
+    if m == 1
+        scatter(mod(V(:,1),1), mod(V(:,2),1), c)
+    else
+        scatter(V(:,1),V(:,2), c)
+    end
+end
 function [dataFunctions] = push_functions_to_flattening_edit(cutMesh, functions, params)
 
     params.null = [];

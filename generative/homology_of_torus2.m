@@ -15,6 +15,7 @@ function hb = homology_of_torus2(T,V, idx)
     mini = [];
     mindist = inf;
     minp = [];
+    assert(length(idx)==1); %TODO remove jj loop
     for jj = 1:length(idx)
         for ii = 1:round(length(hb{1})/5):length(hb{1})
             AT = Adj;
@@ -89,7 +90,6 @@ function hb = homology_of_torus2(T,V, idx)
     %   for every boundary vertex v if there is a loop from  v to it's twin 
     %   in the boundary of cut cylinder, disjoint from the boundary
     %   that is our second loop
-%     for j  = 1: size(f,1)
     half_loop = floor(length(hb{1})/2)-1;
     visualize_with_lms(T, V, [], {hb{1}, minp, p1, p2})
     indices = find(hb{1} == idx(mini(2))) + floor(0.5:0.5:half_loop+.5).*(cos(pi*(0:2*half_loop)));

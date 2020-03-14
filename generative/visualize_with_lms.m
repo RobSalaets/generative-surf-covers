@@ -33,7 +33,9 @@ function visualize_with_lms(faces, newpoints, varargin)
     xlim([-maxdim maxdim]);
     ylim([-maxdim maxdim]);
     zlim([-maxdim maxdim]);
-    
+    xlabel('x')
+    ylabel('y')
+    zlabel('z')
     if iscell(lms_idx)
         for ii=1:length(lms_idx)
             lms = V(lms_idx{ii},:);
