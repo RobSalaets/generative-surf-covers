@@ -46,10 +46,14 @@ classdef Torus_Flattener < handle
     end
     
     methods
-        function obj=Torus_Flattener(V,T,idx)
+        function obj=Torus_Flattener(V,T,varargin)
             % hb is a 2 by 1 cell array, where hb{i} is the indices of
             %the vertices in the it'h homology cycle
-            hb = homology_of_torus(T,V);
+            if isempty(varargin)
+                hb = homology_of_torus(T,V);
+            else
+                hb = varargin{1};
+            end
             % make sure the cycle intersect at a single vertex
             assert(length(intersect(hb{1},hb{2}))==1,'The homology cycles intersect in an inappropriate way.');
             obj.vertex = intersect(hb{1},hb{2});
@@ -67,6 +71,17 @@ classdef Torus_Flattener < handle
             % creat the boundary of the cut torus
             f = obj.tri_cut_torus.freeBoundary;
             f = f(:,1);
+            
+            %flip f if not counter clockwise
+            [f1i, f1j] = find(obj.T_cut_torus == f(1));
+            T1 = obj.T_cut_torus(f1i,:);
+            [f2i, f2j] = find(T1 == f(2));
+            a = [f2j f1j(f2i)];
+            if isequal(a,[1 2]) || isequal(a,[2 3]) || isequal(a,[3 1])
+                f = flip(f);
+                disp 'Flipped the free boundary'
+            end
+            %
             %find the indices of the copies of the two homology cucles on
             %the cut torus
             find_cycels_on_cut_torus(obj,f);
@@ -88,10 +103,13 @@ classdef Torus_Flattener < handle
             % find where the cut vertex is on the boundary of the cut
             % torus
             index = find(obj.I_cut_to_uncut(f)== obj.vertex);
+            [~, mloc] = min(f(index));
+            index = circshift(index, 1-mloc);
             assert(length(index) == 4);
             % circle the boundary so the it begins with the cut vertex
             f = circshift(f,1-index(1));
             index = index- index(1) +1;
+            index(index < 1) = index(index < 1) + length(f);
             % find the copies of the homology cycles in the boundary of the
             % cut torus.
             obj.cut_first_circle = cell(1,2);
