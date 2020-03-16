@@ -52,11 +52,11 @@ for m = 0:9
             end
         end
         %%
-%         figure
-%         quickscatter2d(cm.V,0, '.')
-%         hold on
-%         quickscatter2d(cm.V(lps{1},:),0, 'o')
-%         quickscatter2d(cm.V(lps{2},:),0, 'o')
+        figure
+        quickscatter2d(cm.V,0, '.')
+        hold on
+        quickscatter2d(cm.V(lps{1},:),0, 'o')
+        quickscatter2d(cm.V(lps{2},:),0, 'o')
         
         visualize_with_lms(gluer.T_torus, gluer.V_torus, [], {loop{1} loop{2} find(gluer.torus_to_sphere == min_agd_point)})
         

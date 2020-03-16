@@ -16,7 +16,7 @@ tuple1 = {{[6, 7, 8, 9, 10],[1],[2],[3],[4],[5]},{[1, 7, 3, 4, 9],[2],[5],[6],[8
 scalef =0.0045*5e2;
 minAGD = 1110;
 
-normF = 2000;
+normF = 1000;
 V = points / normF;
 V = V - mean(V, 1);
 
@@ -25,18 +25,19 @@ inds = [inds(1) inds(3) inds(5) inds(4) inds(2)];
 gluer = Gluer(V,faces,inds,tuple1,minAGD);
 % flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus);
 % cutMeshO = CutMesh(gluer, flattenerO);
-for ii=1:1
+for ii=1:10
     ii
     weights= ((rand(4300,1)*2 -1).*sqrt(evalues)') * scalef;
     variation= squeeze(sum(weights.*evectors,1)) / normF;
     newpoints = V + variation;
+    visualize_with_lms(faces, newpoints, [])
     
-    flattener = Torus_Flattener(gluer.V_torus,gluer.T_torus);
-    cutMesh = CutMesh(gluer, flattener, 0);
-
-    
-    params.sz = 128;
-    [pushed_function] = push_functions_to_flattening_edit(cutMesh, newpoints, params);
+%     flattener = Torus_Flattener(gluer.V_torus,gluer.T_torus);
+%     cutMesh = CutMesh(gluer, flattener, 0);
+% 
+%     
+%     params.sz = 512;
+%     [pushed_function] = push_functions_to_flattening_edit(cutMesh, newpoints, params);
 %     save(strcat('generative/meshes/humans/h', num2str(ii)), 'pushed_function')
 end
 % profile viewer

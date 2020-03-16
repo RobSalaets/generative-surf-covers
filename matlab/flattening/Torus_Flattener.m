@@ -71,20 +71,23 @@ classdef Torus_Flattener < handle
             % creat the boundary of the cut torus
             f = obj.tri_cut_torus.freeBoundary;
             f = f(:,1);
-            
-            %flip f if not counter clockwise
-            [f1i, f1j] = find(obj.T_cut_torus == f(1));
-            T1 = obj.T_cut_torus(f1i,:);
-            [f2i, f2j] = find(T1 == f(2));
-            a = [f2j f1j(f2i)];
-            if isequal(a,[1 2]) || isequal(a,[2 3]) || isequal(a,[3 1])
-                f = flip(f);
-                disp 'Flipped the free boundary'
+            % Flip the fb for consistency
+            f = flip_free_boundary(obj, f);
+            % Shift the indices of f for consitency
+            if ~isempty(varargin)
+                [f, cut_vertex_index] = shift_to_consistent_gradient(obj,f, varargin{2}, varargin{3});
+            else
+                % find where the cut vertex is on the boundary of the cut
+                % torus
+                cut_vertex_index = find(obj.I_cut_to_uncut(f)== obj.vertex);
+                assert(length(cut_vertex_index) == 4);
+                % circle the boundary so the it begins with the cut vertex
+                f = circshift(f,1-cut_vertex_index(1));
+                cut_vertex_index = cut_vertex_index- cut_vertex_index(1) +1;
             end
-            %
             %find the indices of the copies of the two homology cucles on
             %the cut torus
-            find_cycels_on_cut_torus(obj,f);
+            find_cycels_on_cut_torus(obj,f, cut_vertex_index);
             % make sure the two copies of each homology cycle come from the
             % same homology cycle in the uncut torus.
             assert(all(obj.I_cut_to_uncut(obj.cut_first_circle{1}) == obj.I_cut_to_uncut(obj.cut_first_circle{2})));
@@ -99,17 +102,46 @@ classdef Torus_Flattener < handle
             obj.V_plane = solve_tutte(obj);
             min_conformal_distorion_unit_squre(obj);
         end
-        function find_cycels_on_cut_torus (obj,f)
-            % find where the cut vertex is on the boundary of the cut
-            % torus
+        function f2 = flip_free_boundary(obj, f)
+            %flip f if not counter clockwise
+            [f1i, f1j] = find(obj.T_cut_torus == f(1));
+            T1 = obj.T_cut_torus(f1i,:);
+            [f2i, f2j] = find(T1 == f(2));
+            a = [f2j f1j(f2i)];
+            if isequal(a,[1 2]) || isequal(a,[2 3]) || isequal(a,[3 1])
+                f2 = flip(f);
+                disp 'Flipped the free boundary'
+            else
+                f2 = f;
+            end
+        end
+        function [f2, index2] = shift_to_consistent_gradient(obj,f,v1,v2)
             index = find(obj.I_cut_to_uncut(f)== obj.vertex);
-            [~, mloc] = min(f(index));
-            index = circshift(index, 1-mloc);
             assert(length(index) == 4);
-            % circle the boundary so the it begins with the cut vertex
-            f = circshift(f,1-index(1));
-            index = index- index(1) +1;
-            index(index < 1) = index(index < 1) + length(f);
+            c = -1;
+            for ii=1:4
+                i1 = mod(index(ii)+2, length(f)); i1(i1 == 0) = length(f);
+                w1 = normr(obj.V_cut_torus(f(i1),:)-obj.V_cut_torus(f(index(ii)),:));
+                i2 = mod(index(ii)-2, length(f)); i2(i2 == 0) = length(f);
+                w2 = normr(obj.V_cut_torus(f(index(ii)),:)-obj.V_cut_torus(f(i2),:));
+                dots = [v1*w1'; v2*w1'; v1*w2'; v2*w2'];
+                [~, m1] = max(abs(dots(1:2)));
+                [~, m2] = max(abs(dots(3:4)));
+                dot1 = dots(m1); dot2 = dots(2+m2);
+%                 assert(abs(dot1) > 0.5 && abs(dot2) > 0.5, 'gradients do not align');
+                dot1 = round(dot1 / abs(dot1));
+                dot2 = round(dot2 / abs(dot2));
+                if dot1 == 1 && dot2 == 1
+                    c = ii;
+                end
+            end
+            assert(c > 0, 'No consistent index found');
+            f2 = circshift(f,1-index(c));
+            index2 = index- index(c) +1;
+            index2(index2 < 1) = index2(index2 < 1) + length(f);
+            index2 = circshift(index2, 1-c);
+        end
+        function find_cycels_on_cut_torus(obj,f, index)
             % find the copies of the homology cycles in the boundary of the
             % cut torus.
             obj.cut_first_circle = cell(1,2);
