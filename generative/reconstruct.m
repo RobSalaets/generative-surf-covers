@@ -7,6 +7,11 @@ load('human_lms.mat')
 % load('reg_lms.mat')
 % [V,faces] = read_ply('tr_reg_020.ply');
 
+%%%%%
+% LOOK AT lift_image_AE to ''improve'' reconstruction
+%%%%%
+
+
 tuple1 = {{[6, 7, 8, 9, 10],[1],[2],[3],[4],[5]},{[1, 7, 3, 4, 9],[2],[5],[6],[8],[10]...
     },{[1, 8, 4, 3, 7],[2],[5],[6],[9],[10]},{[2, 5, 4, 7, 6],[1],[3],[8],[9],[10]},{[2, 10, 9, 4, 5],...
     [1],[3],[6],[7],[8]}};
@@ -39,7 +44,7 @@ for ii = 1:size(cm.V_divided,1)
     [maxS(ii), mloc] = max(scales);
     max_scale_idx(ii) = ixs(mloc);
 end
-[X,Y] = meshgrid(linspace(0,1,params.sz),linspace(0,1, params.sz));
+[X,Y] = meshgrid(linspace(0,1-1/params.sz,params.sz),linspace(0,1-1/params.sz, params.sz));
 u = mod(cm.V(:,1),1.0);
 v = mod(cm.V(:,2),1.0);
 interpV(:,1) = interp2(X,Y,pushed_function(:,:,1),u,v);
