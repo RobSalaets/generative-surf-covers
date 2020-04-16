@@ -14,8 +14,8 @@ tuple2 = {{[3,4,5],[1],[2]},{[2,3,5],[1],[4]},{[1,5,2],[3],[4]},{[1,2,5],[3],[4]
 tuple3 = {{[1,2]},{[1,2]},{[1,2]},{[1,2]}}; %d=2
 tuple4 = {{[1,2,3],[4]},{[2,3,4],[1]},{[1,2,4],[3]},{[1,2,3],[4]}};
 inds = [inds(1) inds(3) inds(5) inds(4) inds(2)];
-% inds = inds(2:end);
-tuple = tuple1;
+inds = inds(2:end);
+tuple = tuple3;
 
 scalef =0.0045*5e2;
 minAGD = 1110;
@@ -45,7 +45,7 @@ figure
 histogram(maxS, 100)
 
 %%
-sm_idx = maxS > 0.5;
+sm_idx = maxS < 0.1;
 ids = max_scale_idx(sm_idx);
 figure
 scatter(mod(cm.V(:,1),1), mod(cm.V(:,2),1), 20, cm.vertex_scale, '.')

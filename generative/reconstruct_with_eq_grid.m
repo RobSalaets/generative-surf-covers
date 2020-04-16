@@ -27,40 +27,53 @@ gluer = Gluer(V,faces,inds,tuple1,minAGD);
 flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus);
 cm = CutMesh(gluer, flattenerO, 1);
 %%
+%Equidistant topology
+sz = 128;
+[Xgrid, Ygrid] = meshgrid(linspace(0, 1-1/sz, sz), linspace(0,1-1/sz, sz));
+V_grid(:,1) = Xgrid(:);
+V_grid(:,2) = Ygrid(:);
+tsz = length(V_grid);
+T_grid = [(1:tsz-sz)' (2:1+tsz-sz)' (2+sz:1+tsz)';
+          (1:tsz-sz)' (2+sz:1+tsz)' (1+sz:tsz)'];
+halfsz = tsz-sz;
+T_grid(sz:sz:tsz-sz,:) = T_grid(sz:sz:tsz-sz,:)-[0 sz sz];
+T_grid(halfsz+sz:sz:halfsz+tsz-sz,:) = T_grid(halfsz+sz:sz:halfsz+tsz-sz,:)-[0 sz 0];
+T_grid = [T_grid; 
+          (sz*sz-sz+1:sz*sz-1)' (sz*sz-sz+2:sz*sz)' (2:sz)';
+          (sz*sz-sz+1:sz*sz-1)' (2:sz)' (1:sz-1)'];
+trisurf(triangulation(T_grid, [V_grid zeros(length(V_grid), 1)]))
+%%
 
 for kk=1:5
 load(sprintf('C:\\Users\\Rob\\Desktop\\Thesis\\Geometry\\progressive_growing_of_gans\\generated\\fm128-1800ticks-zm-fp16\\G%i.mat', kk))
-% load('reg_test.mat')
 load('hstats8000.mat')
 pushed_function = double(pushed_function) + mn;
-params.sz = 128;
+params.sz = sz;
 
-all_scales = zeros(size(cm.V_divided,1),10);
-for ii = 1:size(cm.V_divided,1)
-    ixs = cm.inds_mesh_divided_to_inds_plane{ii};
-    scales = cm.vertex_scale(ixs);
-    scales = scales./sum(scales);
-    all_scales(ii,1:length(scales)) = scales';
-    [maxS(ii), mloc] = max(scales);
-    max_scale_idx(ii) = ixs(mloc);
-end
-[X,Y] = meshgrid(linspace(0,1-1/params.sz,params.sz),linspace(0,1-1/params.sz, params.sz));
-u = mod(cm.V(:,1),1.0);
-v = mod(cm.V(:,2),1.0);
-interpV(:,1) = interp2(X,Y,pushed_function(:,:,1),u,v);
-interpV(:,2) = interp2(X,Y,pushed_function(:,:,2),u,v);
-interpV(:,3) = interp2(X,Y,pushed_function(:,:,3),u,v);
+u = V_grid(:,1);
+v = V_grid(:,2);
+% Not necassary is size are compatible
+% interpV(:,1) = interp2(X,Y,pushed_function(:,:,1),u,v);
+% interpV(:,2) = interp2(X,Y,pushed_function(:,:,2),u,v);
+% interpV(:,3) = interp2(X,Y,pushed_function(:,:,3),u,v);
+interpV = reshape(pushed_function, [sz*sz 3]);
+
+%Get scale grid
+si_scale = scatteredInterpolant(mod(cm.V,1),cm.vertex_scale);
+scale_grid = reshape(si_scale(u, v), [sz sz]);
+figure
+imagesc(scale_grid)
 %Max
-reconVmax = interpV(max_scale_idx,:);
-reconVavg = reconVmax;
-%AVG
-for ii = 1:size(cm.V_divided,1)
-    ixs = cm.inds_mesh_divided_to_inds_plane{ii};
-    reconVavg(ii,:) = all_scales(ii, 1:length(ixs)) * interpV(ixs,:); 
-end
+% reconVmax = interpV(max_scale_idx,:);
+% reconVavg = reconVmax;
+% %AVG
+% for ii = 1:size(cm.V_divided,1)
+%     ixs = cm.inds_mesh_divided_to_inds_plane{ii};
+%     reconVavg(ii,:) = all_scales(ii, 1:length(ixs)) * interpV(ixs,:); 
+% end
 
 % visualize_with_lms(faces, reconVavg)
-visualize_with_lms(faces, reconVmax)
+visualize_with_lms(T_grid, interpV)
 end
 
 function s = perlin2D (m)

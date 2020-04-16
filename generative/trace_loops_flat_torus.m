@@ -19,9 +19,6 @@ function [loop, loopps] = trace_loops_flat_torus(fl, gl, lm_idx, dir, prev_loop)
             Aprev = fl.I_cut_to_uncut(loop(end-1));
             Aring = setdiff(Aring, Aprev);
         end
-        if length(loop) == 200
-            disp prijs
-        end
         [ring, aj] = find(fl.I_cut_to_uncut == Aring);
         %Deal with boundary
         ringorig = ring;

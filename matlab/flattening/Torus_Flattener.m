@@ -19,6 +19,8 @@ classdef Torus_Flattener < handle
         cut_second_circle;
         % the index of the vertex where the homology cycles intersect
         vertex;
+        % Homology cycles
+        hb;
         % the four copies of vertex in the cut torus
         cut_vertex;
         % Laplacian matrix
@@ -57,6 +59,7 @@ classdef Torus_Flattener < handle
             % make sure the cycle intersect at a single vertex
             assert(length(intersect(hb{1},hb{2}))==1,'The homology cycles intersect in an inappropriate way.');
             obj.vertex = intersect(hb{1},hb{2});
+            obj.hb = hb;
             % create the edges of the homology cycles
             first_circle = [hb{1}(1:end -1) hb{1}(2:end)];
             second_circle = [hb{2}(1:end -1) hb{2}(2:end)];
@@ -74,7 +77,8 @@ classdef Torus_Flattener < handle
             % Flip the fb for consistency
             f = flip_free_boundary(obj, f);
             % Shift the indices of f for consitency
-            if ~isempty(varargin)
+%             visualize_with_lms(T, V, [], {hb{1}, hb{2}})
+            if length(varargin) > 1
                 [f, cut_vertex_index] = shift_to_consistent_gradient(obj,f, varargin{2}, varargin{3});
             else
                 % find where the cut vertex is on the boundary of the cut
@@ -97,7 +101,11 @@ classdef Torus_Flattener < handle
             %clamp negative weights
             clamp(obj);
             % create the toric prbifold boundary conditions
-            set_boundary_conditions(obj);
+            if length(varargin) > 3
+                set_boundary_conditions_with_lms(obj, varargin{4});
+            else
+                set_boundary_conditions(obj);
+            end
             % create the flattening
             obj.V_plane = solve_tutte(obj);
             min_conformal_distorion_unit_squre(obj);
@@ -199,6 +207,26 @@ classdef Torus_Flattener < handle
             set_cycles_idendical_up_to_translation(obj,obj.cut_first_circle,1);
             set_cycles_idendical_up_to_translation(obj,obj.cut_second_circle,2);
 
+        end
+        function set_boundary_conditions_with_lms(obj, lms_plane)
+            set_boundary_conditions(obj)
+            for ii = 1:length(lms_plane)
+                torus_idx = lms_plane{ii}{3};
+                Vlms= lms_plane{ii}{1};
+                [ft_idx, ~] = find(obj.I_cut_to_uncut == torus_idx');
+                ft_idx = sort(ft_idx);
+                if ii > 1
+                    obj.L(:,ft_idx) = obj.L(:,ft_idx)*1000;
+                    [rs, ~] = find(obj.L(:,ft_idx));
+                    lrs = sub2ind([length(obj.L), length(obj.L)], rs,rs);
+                    obj.L(lrs) = 0;
+                    obj.L(lrs) = -full(sum(obj.L(rs,:), 2));
+                end
+                obj.L(ft_idx,:) = 0;
+                obj.L = obj.L  + sparse(ft_idx,ft_idx,ones(length(ft_idx),1),...
+                                        length(obj.L),length(obj.L));
+                obj.b(ft_idx,:) = Vlms;
+            end
         end
         function set_cycles_idendical_up_to_translation(obj,cycle,cycle_number)
             % set the copies of the first cycle identical up to translation

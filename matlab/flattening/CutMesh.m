@@ -30,6 +30,7 @@ classdef CutMesh < handle
         % cellarry where A{i} contains an array of all 
         %duplicates on the plane, of the vertex i on the mesh
         inds_mesh_divided_to_inds_plane;
+        inds_mesh_divided_to_inds_plane_unsorted;
         % array where A(i) is the index of the original on the divided mesh
         %of triangle i on the plane
         Ts_plane_to_divided_Ts_mesh;
@@ -99,6 +100,7 @@ classdef CutMesh < handle
                 obj.inds_mesh_divided_to_inds_plane{obj.inds_plane_to_divided_inds_mesh(i)} = ...
                     [obj.inds_mesh_divided_to_inds_plane{obj.inds_plane_to_divided_inds_mesh(i)} ;i];
             end
+            obj.inds_mesh_divided_to_inds_plane_unsorted = obj.inds_mesh_divided_to_inds_plane;
             % create map of triangles from the flattened covering mesh 
             %to the origianl (divided) mesh
             obj.Ts_plane_to_divided_Ts_mesh = [];
@@ -119,7 +121,6 @@ classdef CutMesh < handle
             end
             % compute area distortion, angles distortion of each face and vertex 
             if compute_scale == 1
-                
                 obj.compute_scale;
             end
         end

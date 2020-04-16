@@ -17,16 +17,27 @@ function visualize_with_lms(faces, newpoints, varargin)
         end
     end
 
-    figure
+%     figure
     if nargs > 0 && ~isempty(varargin{1})
-        trisurf(faces, V(:,1),V(:,2),V(:,3), 'FaceColor','interp', 'facevertexcdata', varargin{1})
+        h = trisurf(faces, V(:,1),V(:,2),V(:,3), 'FaceColor','interp', 'facevertexcdata', varargin{1})
     else
-        trisurf(triangulation(faces, V));
+        h = trisurf(triangulation(faces, V));
     end
     axis vis3d
     axis equal
     hold on
-    
+    if nargs > 3
+        shading interp
+        lightangle(varargin{5},varargin{4})
+        h.FaceLighting = 'flat';
+        h.AmbientStrength = 0.5;
+        h.DiffuseStrength = 0.8;
+        h.SpecularStrength = 0.1;
+        h.SpecularExponent = 25;
+        h.FaceColor = [0.1 0.3 0.25];
+        camlight
+        light('Position', [0 0.2 0])
+    end
     
     
     maxdim = max(max(abs(V)));
@@ -48,4 +59,5 @@ function visualize_with_lms(faces, newpoints, varargin)
             text(lms(:,1), lms(:,2), lms(:,3), cellstr(num2str(lms_idx(:))),'Color','green')
         end
     end
+    hold off
 end

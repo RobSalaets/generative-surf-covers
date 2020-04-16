@@ -15,7 +15,7 @@ v2 = [-0.00325060702605465,0.289651597274123,-0.957126629945334];
 
 plane_cone_avg = {};
 
-for m = 0:9
+for m = 0:0
     m
     for ii = 0:0
         [V,T] = read_ply(sprintf('tr_%d_%03d.ply',m, ii));
@@ -52,31 +52,31 @@ for m = 0:9
             end
         end
         %%
-%         figure
-%         quickscatter2d(cm.V,0, '.')
-%         hold on
-%         quickscatter2d(cm.V(lps{1},:),0, 'o')
-%         quickscatter2d(cm.V(lps{2},:),0, 'o')
+        figure
+        quickscatter2d(cm.V,0, '.')
+        hold on
+        quickscatter2d(cm.V(lps{1},:),0, 'o')
+        quickscatter2d(cm.V(lps{2},:),0, 'o')
+%         
+%         visualize_with_lms(gluer.T_torus, gluer.V_torus, [], {loop{1} loop{2} find(gluer.torus_to_sphere == min_agd_point)})
         
-        visualize_with_lms(gluer.T_torus, gluer.V_torus, [], {loop{1} loop{2} find(gluer.torus_to_sphere == min_agd_point)})
-        
-        flattenerP = Torus_Flattener(gluer.V_torus,gluer.T_torus, loop, v1, v2);
-        cm = CutMesh(gluer, flattenerP, 1);
-        
-        for jj=1:length(cones)
-            if m==0
-                plane_cone_avg{jj} = cm.V(cm.inds_mesh_divided_to_inds_plane{cones(jj)},:);
-            else
-                plane_cone_avg{jj} = plane_cone_avg{jj} + cm.V(cm.inds_mesh_divided_to_inds_plane{cones(jj)},:);
-            end
-        end
-        
-        %%
-        params.sz = 128;
-        [pushed_function] = push_functions_to_flattening_edit(cm, V, params);
-       
-        figure 
-        imagesc((pushed_function + 1)*.7)
+%         flattenerP = Torus_Flattener(gluer.V_torus,gluer.T_torus, loop, v1, v2);
+%         cm = CutMesh(gluer, flattenerP, 1);
+%         
+%         for jj=1:length(cones)
+%             if m==0
+%                 plane_cone_avg{jj} = cm.V(cm.inds_mesh_divided_to_inds_plane{cones(jj)},:);
+%             else
+%                 plane_cone_avg{jj} = plane_cone_avg{jj} + cm.V(cm.inds_mesh_divided_to_inds_plane{cones(jj)},:);
+%             end
+%         end
+%         
+%         %%
+%         params.sz = 128;
+%         [pushed_function] = push_functions_to_flattening_edit(cm, V, params);
+%        
+%         figure 
+%         imagesc((pushed_function + 1)*.7)
     end
 end
 

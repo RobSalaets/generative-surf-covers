@@ -25,21 +25,22 @@ inds = [inds(1) inds(3) inds(5) inds(4) inds(2)];
 gluer = Gluer(V,faces,inds,tuple1,minAGD);
 % flattenerO = Torus_Flattener(gluer.V_torus,gluer.T_torus);
 % cutMeshO = CutMesh(gluer, flattenerO);
-for ii=1:1
+flattener = Torus_Flattener(gluer.V_torus,gluer.T_torus);
+cutMesh = CutMesh(gluer, flattener, 1);
+for ii=1:3
     ii
     weights= ((rand(4300,1)*2 -1).*sqrt(evalues)') * scalef;
     variation= squeeze(sum(weights.*evectors,1)) / normF;
     newpoints = V + variation;
-    visualize_with_lms(faces, newpoints, [])
+%     visualize_with_lms(faces, newpoints, [])
     
-    flattener = Torus_Flattener(gluer.V_torus,gluer.T_torus);
-    cutMesh = CutMesh(gluer, flattener, 1);
-% 
-%     
+%     flattener = Torus_Flattener(gluer.V_torus,gluer.T_torus);
+%     cutMesh = CutMesh(gluer, flattener, 1);
+
     params = struct();
-    params.sz = 64;
+    params.sz = 512;
     [pushed_function] = push_functions_to_flattening_edit(cutMesh, newpoints, params);
-%     save(strcat('th', num2str(ii)), 'pushed_function')
+%     save(strcat('512h', num2str(ii)), 'pushed_function')
 end
 % profile viewer
 
