@@ -25,6 +25,7 @@ classdef Torus_Flattener < handle
         cut_vertex;
         % Laplacian matrix
         L;
+        L2;
         % the vector such that L*V_plane = b
         b;
         %the affine transforatmion of each triangle
@@ -100,14 +101,14 @@ classdef Torus_Flattener < handle
             obj.L = cotmatrix(obj.V_cut_torus,obj.T_cut_torus);
             %clamp negative weights
             clamp(obj);
+            obj.L2 = obj.L;
             % create the toric prbifold boundary conditions
+            set_boundary_conditions(obj);
+            obj.V_plane = solve_tutte(obj);
             if length(varargin) > 3
-                set_boundary_conditions_with_lms(obj, varargin{4});
-            else
-                set_boundary_conditions(obj);
+                obj.V_plane = solve_tutte_with_lms(obj, varargin{4});
             end
             % create the flattening
-            obj.V_plane = solve_tutte(obj);
             min_conformal_distorion_unit_squre(obj);
         end
         function f2 = flip_free_boundary(obj, f)
@@ -208,25 +209,70 @@ classdef Torus_Flattener < handle
             set_cycles_idendical_up_to_translation(obj,obj.cut_second_circle,2);
 
         end
-        function set_boundary_conditions_with_lms(obj, lms_plane)
-            set_boundary_conditions(obj)
+        function u= solve_tutte_with_lms(obj, lms_plane)
+            obj.L = obj.L2;
+            w = obj.vertexScale();
+            % create b, the vector such that L*u=b
+            obj.b = sparse(length(obj.L),2);
+            
+            %set every vertex in the first copy of each cycle to be a
+            %convex combination of both its neighbors and the neighbors of
+            %its "twin" on the second copy.
+            set_ccm_proprty_on_cycle(obj,obj.cut_first_circle,1);
+            set_ccm_proprty_on_cycle(obj,obj.cut_second_circle,2);
+            %set every vertex in the second copy of each cycle to be a
+            %a translation of its twin in the first copy
+            set_cycles_idendical_up_to_translation(obj,obj.cut_first_circle,1);
+            set_cycles_idendical_up_to_translation(obj,obj.cut_second_circle,2);
+            
+            fixed_vars_idx = [];
+            V_fixed = [];
             for ii = 1:length(lms_plane)
-                torus_idx = lms_plane{ii}{3};
+                torus_idx = lms_plane{ii}{3}; % torus ids zitten in dezelfde kopie en volgorde
                 Vlms= lms_plane{ii}{1};
+                if ii == 1
+                    Vlms = Vlms(3:7,:);
+                end
                 [ft_idx, ~] = find(obj.I_cut_to_uncut == torus_idx');
                 ft_idx = sort(ft_idx);
-                if ii > 1
-                    obj.L(:,ft_idx) = obj.L(:,ft_idx)*1000;
-                    [rs, ~] = find(obj.L(:,ft_idx));
-                    lrs = sub2ind([length(obj.L), length(obj.L)], rs,rs);
-                    obj.L(lrs) = 0;
-                    obj.L(lrs) = -full(sum(obj.L(rs,:), 2));
-                end
-                obj.L(ft_idx,:) = 0;
-                obj.L = obj.L  + sparse(ft_idx,ft_idx,ones(length(ft_idx),1),...
-                                        length(obj.L),length(obj.L));
-                obj.b(ft_idx,:) = Vlms;
+                [ft_idx, iD] = setdiff(ft_idx, obj.cut_vertex);
+                
+                fixed_vars_idx = [fixed_vars_idx; ft_idx];
+                V_fixed = [V_fixed; Vlms];
             end
+            selection = vecnorm((obj.V_plane(fixed_vars_idx,:) - V_fixed)') < 0.4;
+            
+            V_fixed = V_fixed(selection,:);
+            fixed_vars_idx = fixed_vars_idx(selection);
+            
+            V_fixed = [V_fixed; [ 0 0 ;1 0; 1 1 ; 0 1]];
+            fixed_vars_idx = [fixed_vars_idx; obj.cut_vertex];
+            
+
+            free_vars_idx = setdiff(1:length(obj.L), fixed_vars_idx);
+            obj.b = obj.b - obj.L(:,fixed_vars_idx) * V_fixed;
+            
+            u =  zeros(length(obj.L),2);
+            %%
+            exp = -0.5;
+            res = 1;
+            ii = 0;
+            while res > 1e-2 && ii < 5
+            wmapped = real(abs(w).^(exp));
+            
+            W = sparse(1:length(w), 1:length(w), wmapped, length(w), length(w));
+            
+            u(free_vars_idx,1) = (W*obj.L(:,free_vars_idx))\(W*obj.b(:,1));
+            u(free_vars_idx,2) = (W*obj.L(:,free_vars_idx))\(W*obj.b(:,2));
+            u(fixed_vars_idx,1) = V_fixed(:,1);
+            u(fixed_vars_idx,2) = V_fixed(:,2);
+            
+            residu_w = vecnorm(W*obj.L(:,free_vars_idx)*u(free_vars_idx,1)-W*obj.b(:,1));
+            res = vecnorm(obj.L(:,free_vars_idx)*u(free_vars_idx,1)-obj.b(:,1));
+            exp = exp*0.7;
+            ii = ii + 1;
+            end
+            disp(sprintf('Took %i iterations to find weights WLS', ii))
         end
         function set_cycles_idendical_up_to_translation(obj,cycle,cycle_number)
             % set the copies of the first cycle identical up to translation

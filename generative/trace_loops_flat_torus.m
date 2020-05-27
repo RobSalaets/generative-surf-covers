@@ -16,7 +16,7 @@ function [loop, loopps] = trace_loops_flat_torus(fl, gl, lm_idx, dir, prev_loop)
             Aring = setdiff(Aring, prev_loop);
         end
         if length(loop) > 1
-            Aprev = fl.I_cut_to_uncut(loop(end-1));
+            Aprev = fl.I_cut_to_uncut(loop(2:end));
             Aring = setdiff(Aring, Aprev);
         end
         [ring, aj] = find(fl.I_cut_to_uncut == Aring);
@@ -39,9 +39,13 @@ function [loop, loopps] = trace_loops_flat_torus(fl, gl, lm_idx, dir, prev_loop)
             vs = mod(V(ringorig,:)-repmat([V(lm_idx,1)-0.5 V(curr,2)-0.5], [length(ringorig) 1]),1)...
              + repmat([-0.5 -0.5], [length(ringorig) 1]);
         end
-        vn = vecnorm(vs')';
-        vs = vs./ vn;
-        cost = (vs(:,dir) - 1).^2 + 4*vs(:,3-dir).^2;
+%         vn = vecnorm(vs')';
+%         vs = vs./ vn;
+        
+%         cost = (vs(:,dir) - 1).^2 + 4*vs(:,3-dir).^2;
+        cost = vs(:,3-dir).^2;
+        cost(vs(:,dir) <= 0) = inf;
+        assert(sum(vs(:,dir)>0) > 0);
         [~,iloc] = min(cost);
         i = i+1;
         loop(i) = ring(iloc);

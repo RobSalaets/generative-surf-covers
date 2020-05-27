@@ -9,7 +9,7 @@ load('human_lms.mat')
 evectors = reshape(evectors, [4300 6449 3]);
 
 % k = 6, r = 2, d = 3 ook proberen
-
+tic
 tuple1 = {{[6, 7, 8, 9, 10],[1],[2],[3],[4],[5]},{[1, 7, 3, 4, 9],[2],[5],[6],[8],[10]...
     },{[1, 8, 4, 3, 7],[2],[5],[6],[9],[10]},{[2, 5, 4, 7, 6],[1],[3],[8],[9],[10]},{[2, 10, 9, 4, 5],...
     [1],[3],[6],[7],[8]}};
@@ -41,7 +41,26 @@ for ii=1:1
     params.sz = 512;
     [pushed_function] = push_functions_to_flattening_edit(cutMesh, newpoints, params);
 %     save(strcat('512h', num2str(ii)), 'pushed_function')
+%%
+    idx = 1700;
+    pli = cutMesh.inds_mesh_divided_to_inds_plane{idx};
+    figure
+    hold on
+    imagesc(pushed_function + 0.5)
+    plot(mod(cutMesh.V(pli,1),1.0)*512, mod(cutMesh.V(pli,2),1.0)*512, 'o', 'linewidth',2,'markeredgecolor','k','markerfacecolor','y','markersize',7)
+    axis off
+    visualize_with_lms(faces,newpoints, newpoints + 0.5, {idx}, 0, 0, 30)
+    axis off
 end
+toc
+%%
+sz= 512;
+locs = [mod(cutMesh.V(pli,1),1.0) mod(cutMesh.V(pli,2),1.0)];
+X = linspace(0, 1-1/sz, sz);
+Y = linspace(0, 1-1/sz, sz);    
+[mX, mY] = meshgrid(X,Y);
+gi = interp2(mX,mY,pushed_function(:,:,3), locs(:,1), locs(:,2))
+
 % profile viewer
 
 function [dataFunctions] = push_functions_to_flattening_edit(cutMesh, functions, params)

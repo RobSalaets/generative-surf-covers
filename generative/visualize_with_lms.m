@@ -17,7 +17,7 @@ function visualize_with_lms(faces, newpoints, varargin)
         end
     end
 
-%     figure
+    figure
     if nargs > 0 && ~isempty(varargin{1})
         h = trisurf(faces, V(:,1),V(:,2),V(:,3), 'FaceColor','interp', 'facevertexcdata', varargin{1})
     else
@@ -30,7 +30,7 @@ function visualize_with_lms(faces, newpoints, varargin)
         shading interp
         lightangle(varargin{5},varargin{4})
         h.FaceLighting = 'flat';
-        h.AmbientStrength = 0.5;
+        h.AmbientStrength = 0.7;
         h.DiffuseStrength = 0.8;
         h.SpecularStrength = 0.1;
         h.SpecularExponent = 25;

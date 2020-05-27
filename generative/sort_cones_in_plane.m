@@ -46,7 +46,7 @@ function [sorted_cones, varargout] = sort_cones_in_plane(V,T, cones, varargin)
         ids = clust{mdp};
         
         [sAGD, I] = sort(varargin{1}(ids));
-        t5 = ids(I(1:5));
+        t5 = ids(I(1:min(5, length(I))));
         nn = zeros(length(t5),1);
         for i=1:length(t5)
             nn(i) = length(find(adj(t5(i),:)));
