@@ -194,9 +194,9 @@ classdef Torus_Flattener < handle
             %fix the four copies of the interesection of the homology cycle
             %to the vertices of unit square.
             obj.L(obj.cut_vertex,:) = 0;
-            % set L(cut_vertex(j),i) to be 1 in delta(i,cut_vertex(j))
+%             set L(cut_vertex(j),i) to be 1 in delta(i,cut_vertex(j))
             obj.L = obj.L  + sparse(obj.cut_vertex,obj.cut_vertex,ones(4,1),...
-                length(obj.L),length(obj.L));
+               length(obj.L),length(obj.L));
             obj.b(obj.cut_vertex,:) = [ 0 0 ;1 0; 1 1 ; 0 1];
             %set every vertex in the first copy of each cycle to be a
             %convex combination of both its neighbors and the neighbors of
@@ -266,12 +266,23 @@ classdef Torus_Flattener < handle
             u(free_vars_idx,2) = (W*obj.L(:,free_vars_idx))\(W*obj.b(:,2));
             u(fixed_vars_idx,1) = V_fixed(:,1);
             u(fixed_vars_idx,2) = V_fixed(:,2);
-            
-            residu_w = vecnorm(W*obj.L(:,free_vars_idx)*u(free_vars_idx,1)-W*obj.b(:,1));
-            res = vecnorm(obj.L(:,free_vars_idx)*u(free_vars_idx,1)-obj.b(:,1));
+            resx = obj.L(:,free_vars_idx)*u(free_vars_idx,1)-obj.b(:,1);
+            res = vecnorm(resx);
             exp = exp*0.7;
             ii = ii + 1;
             end
+            resy = obj.L(:,free_vars_idx)*u(free_vars_idx,2)-obj.b(:,2);
+            resn = vecnorm([resx resy]')';
+            w = obj.vertexScale();
+            figure
+            quickscatter2d([abs(w) resn], 0, '.')
+            hold on
+            quickscatter2d([abs(w(fixed_vars_idx)) resn(fixed_vars_idx)], 0, 'o', 10)
+            set(gca,'xscale','log')
+            set(gca,'yscale','log')
+            xlabel('Schaalvervorming')
+            ylabel('||(r_1, r_2)||_2')
+            
             disp(sprintf('Took %i iterations to find weights WLS', ii))
         end
         function set_cycles_idendical_up_to_translation(obj,cycle,cycle_number)

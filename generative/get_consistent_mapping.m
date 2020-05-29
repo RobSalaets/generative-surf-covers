@@ -36,7 +36,7 @@ function [cm, gluer, flattener, varargout] = get_consistent_mapping(tuple, V, T,
         flattener = Torus_Flattener(gluer.V_torus,gluer.T_torus, loops, v1, v2);
     end
     cm = CutMesh(gluer, flattener, 1);
-    quickscatter2d(cm.V, 1, '.', 10)
+    quickscatter2d(cm.V, 1, '.')
     grid on
     xticks(linspace(0, 1, 512+1))
     yticks(linspace(0, 1, 512+1))

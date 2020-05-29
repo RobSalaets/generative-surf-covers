@@ -30,7 +30,7 @@ params.sz = 512;
 
 %%
 figure 
-quickscatter2d(cmO.V, 1, '.',10)
+quickscatter2d(cmO.V, 1, '.')
 hold on
 
 for m = 0:1
